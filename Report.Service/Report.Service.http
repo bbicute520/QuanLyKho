@@ -1,0 +1,6 @@
+@Report.Service_HostAddress = http://localhost:5113
+
+GET {{Report.Service_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
