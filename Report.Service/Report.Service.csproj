@@ -7,14 +7,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="EPPlus" Version="7.*" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Controllers\" />
-    <Folder Include="Models\" />
     <Folder Include="DTOs\" />
     <Folder Include="Data\" />
+    <Folder Include="Models\" />
     <Folder Include="Services\" />
     <Folder Include="Repositories\" />
   </ItemGroup>
