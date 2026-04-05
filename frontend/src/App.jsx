@@ -5,14 +5,20 @@ import StockIn from './features/transactions/StockIn';
 import StockOut from './features/transactions/StockOut';
 import SupplierList from './features/suppliers/SupplierList';
 import Dashboard from './features/dashboard/Dashboard';
-
-// 1. IMPORT COMPONENT BÁO CÁO VÀO ĐÂY
 import Reports from './features/dashboard/Reports'; 
+import ProtectedRoute from './components/auth/ProtectedRoute';
+
+// 1. IMPORT TRANG LOGIN TỪ THƯ MỤC AUTH MỚI TẠO
+import Login from './features/auth/Login'; 
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* TRANG LOGIN: Nằm riêng biệt, không có Sidebar/Topbar */}
+        <Route path="/login" element={<Login />} />
+
+        {/* CỤM TRANG DASHBOARD: Có DashboardLayout bao quanh */}
         <Route path="/" element={<DashboardLayout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
@@ -20,10 +26,11 @@ export default function App() {
           <Route path="stock-in" element={<StockIn />} />
           <Route path="stock-out" element={<StockOut />} />
           <Route path="suppliers" element={<SupplierList />} />
-          
-          {/* 2. THAY THẾ PLACEHOLDER BẰNG REPORTS */}
           <Route path="reports" element={<Reports />} />
         </Route>
+
+        {/* REDIRECT: Nếu người dùng nhập sai đường dẫn, tự động đẩy về dashboard */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
   );
