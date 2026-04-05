@@ -1,6 +1,16 @@
 <Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="docker-compose.yml" />
+    <File Path="README.md" />
+  </Folder>
   <Project Path="ApiGateway/ApiGateway.csproj" />
   <Project Path="Auth.Service/Auth.Service.csproj" />
+  <Project Path="frontend/frontend.esproj">
+    <Build />
+    <Deploy />
+  </Project>
   <Project Path="Inventory.Service/Inventory.Service.csproj" />
   <Project Path="Report.Service/Report.Service.csproj" />
   <Project Path="Supplier.Service/Supplier.Service.csproj" />
