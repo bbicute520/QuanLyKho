@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -14,3 +16,51 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+
+  authservice:
+    build:
+      context: ./Auth.Service
+    container_name: authservice
+    ports:
+      - "5002:80"
+    depends_on:
+      - sqlserver
+
+  inventoryservice:
+    build:
+      context: ./Inventory.Service
+    container_name: inventoryservice
+    ports:
+      - "5003:80"
+    depends_on:
+      - sqlserver
+
+  supplierservice:
+    build:
+      context: ./Supplier.Service
+    container_name: supplierservice
+    ports:
+      - "5004:80"
+    depends_on:
+      - sqlserver
+
+  reportservice:
+    build:
+      context: ./Report.Service
+    container_name: reportservice
+    ports:
+      - "5001:80"
+    depends_on:
+      - sqlserver
+
+  apigateway:
+    build:
+      context: ./ApiGateway
+    container_name: apigateway
+    ports:
+      - "5000:80"
+    depends_on:
+      - reportservice
+      - authservice
+      - inventoryservice
+      - supplierservice

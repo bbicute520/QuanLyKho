@@ -1,13 +1,30 @@
+using Yarp.ReverseProxy;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Đọc cấu hình YARP từ file yarp.json
-builder.Configuration.AddJsonFile("yarp.json", optional: false, reloadOnChange: true);
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true);
+}
+else
+{
+    builder.Configuration.AddJsonFile("yarp.json", optional: true, reloadOnChange: true);
+}
 
-// Đăng ký YARP
-builder.Services.AddReverseProxy()
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+builder.Services
+    .AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
 var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint("/report-swagger/v1/swagger.json", "Report Service");
+});
 
 app.MapReverseProxy();
 
