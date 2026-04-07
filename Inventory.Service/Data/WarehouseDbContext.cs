@@ -6,13 +6,12 @@ namespace Inventory.Service.Data
     public class WarehouseDbContext : DbContext
     {
         public WarehouseDbContext(DbContextOptions<WarehouseDbContext> options) : base(options) { }
-        public DbSet<Product> Products { get; set; }
 
-        // Khai báo 5 DbSet tương ứng với 5 Model để Entity Framework tạo bảng trong CSDL
-        //public DbSet<Product> Products { get; set; }
-        //public DbSet<Category> Categories { get; set; }
-        //public DbSet<ImportReceipt> ImportReceipts { get; set; }
-        //public DbSet<ExportReceipt> ExportReceipts { get; set; }
-        //public DbSet<StockTransaction> StockTransactions { get; set; }
+        //Khai báo 5 DbSet tương ứng với 5 Model để Entity Framework tạo bảng trong CSDL
+        public DbSet<Product> Products { get; set; }
+        public DbSet<Category> Categories { get; set; }
+        public DbSet<ImportReceipt> ImportReceipts { get; set; }
+        public DbSet<ExportReceipt> ExportReceipts { get; set; }
+        public DbSet<StockTransaction> StockTransactions { get; set; }
     }
 }
