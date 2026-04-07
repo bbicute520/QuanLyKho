@@ -361,3 +361,21 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Docker
+**/docker-data/
+
+# Frontend build output
+frontend/dist/
+frontend/.vite/
+frontend/.env
+frontend/.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
