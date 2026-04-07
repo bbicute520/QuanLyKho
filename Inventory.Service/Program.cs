@@ -22,6 +22,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseStaticFiles();
+
+// THÊM CORS (Đã hướng dẫn ở phần trước)
+app.UseCors("AllowAll");
+
 app.UseAuthorization();
 
 app.MapControllers();

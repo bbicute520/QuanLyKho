@@ -100,4 +100,45 @@ public class ProductController : ControllerBase
     {
         return _context.Products.Any(e => e.Id == id);
     }
+
+    // POST: api/inventory/product/upload
+    [HttpPost("upload")]
+    public async Task<IActionResult> UploadImage([FromForm] IFormFile file)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("Không có file nào được chọn hoặc file rỗng.");
+            }
+
+            // Chỉ định thư mục lưu trữ: wwwroot/images
+            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images");
+
+            // Nếu thư mục chưa tồn tại thì tự động tạo mới
+            if (!Directory.Exists(uploadsFolder))
+            {
+                Directory.CreateDirectory(uploadsFolder);
+            }
+
+            // Đổi tên file: dùng Guid để tránh trùng tên
+            var uniqueFileName = Guid.NewGuid().ToString() + "_" + file.FileName;
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            // Copy file vào server
+            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(fileStream);
+            }
+
+            var imageUrl = $"/images/{uniqueFileName}";
+
+            return Ok(new { Url = imageUrl, Message = "Upload ảnh thành công!" });
+        }
+        catch (Exception ex)
+        {
+            // Bắt mọi lỗi và quăng ra Swagger để mình dễ đọc
+            return StatusCode(500, $"Lỗi Server: {ex.Message}\nChi tiết: {ex.StackTrace}");
+        }
+    }
 }
