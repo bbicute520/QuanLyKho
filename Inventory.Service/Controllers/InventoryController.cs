@@ -48,7 +48,8 @@ namespace Inventory.Service.Controllers
                 var receipt = new ImportReceipt
                 {
                     Note = request.Note,
-                    SupplierId = request.SupplierId,
+                    // Thêm ?? 0 để xử lý nếu SupplierId từ request bị null
+                    SupplierId = request.SupplierId ?? 0,
                     ImportDate = DateTime.Now
                 };
                 _context.ImportReceipts.Add(receipt);
