@@ -9,12 +9,6 @@ export default function ProductList() {
           <h2 className="text-4xl font-black tracking-tight text-on-surface mb-3">Danh sách sản phẩm</h2>
           <p className="text-on-surface-variant text-base max-w-lg">Quản lý kho hàng kỹ thuật số với độ chính xác cao. Theo dõi tồn kho và luồng hàng hóa theo thời gian thực.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <button className="bg-gradient-to-br from-primary to-primary-container text-white px-8 py-4 rounded-xl text-base font-bold flex items-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all">
-            <span className="material-symbols-outlined text-xl">add</span>
-            + Thêm sản phẩm mới
-          </button>
-        </div>
       </div>
 
       {/* Dashboard Stats Summary */}
