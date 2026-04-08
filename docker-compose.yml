@@ -4,9 +4,11 @@ services:
     container_name: sqlserver
     environment:
       - ACCEPT_EULA=Y
-      - SA_PASSWORD=YourStrong@Pass123
+      - SA_PASSWORD=${DB_PASSWORD}
     ports:
       - "1433:1433"
+    networks:
+      - qlk-net
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -14,3 +16,104 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    networks:
+      - qlk-net
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: Auth.Service/Dockerfile
+    container_name: auth-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=AuthDb;User ID=sa;Password=${DB_PASSWORD};TrustServerCertificate=True
+    ports:
+      - "5001:80"
+    depends_on:
+      - sqlserver
+    networks:
+      - qlk-net
+
+  inventory-service:
+    build:
+      context: .
+      dockerfile: Inventory.Service/Dockerfile
+    container_name: inventory-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=WarehouseDB;User ID=sa;Password=${DB_PASSWORD};TrustServerCertificate=True
+    ports:
+      - "5002:80"
+    depends_on:
+      - sqlserver
+    networks:
+      - qlk-net
+
+  supplier-service:
+    build:
+      context: .
+      dockerfile: Supplier.Service/Dockerfile
+    container_name: supplier-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+    ports:
+      - "5003:80"
+    networks:
+      - qlk-net
+
+  report-service:
+    build:
+      context: .
+      dockerfile: Report.Service/Dockerfile
+    container_name: report-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+    ports:
+      - "5004:80"
+    networks:
+      - qlk-net
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: AI/Dockerfile
+    container_name: ai-service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - Groq__ApiKey=${Groq__ApiKey}
+      - Groq__Model=${Groq__Model:-llama-3.1-8b-instant}
+      - Groq__BaseUrl=${Groq__BaseUrl:-https://api.groq.com/openai/v1}
+      - InventoryService__BaseUrl=http://inventory-service
+    ports:
+      - "5005:80"
+    depends_on:
+      - inventory-service
+    networks:
+      - qlk-net
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ApiGateway/Dockerfile
+    container_name: api-gateway
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+    ports:
+      - "5000:80"
+    depends_on:
+      - auth-service
+      - inventory-service
+      - supplier-service
+      - report-service
+    networks:
+      - qlk-net
+
+networks:
+  qlk-net:
+    driver: bridge

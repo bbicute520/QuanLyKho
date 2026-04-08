@@ -30,28 +30,28 @@
       "auth-cluster": {
         "Destinations": {
           "auth-service": {
-            "Address": "http://localhost:5001"
+            "Address": "http://auth-service"
           }
         }
       },
       "inventory-cluster": {
         "Destinations": {
           "inventory-service": {
-            "Address": "http://localhost:5002"
+            "Address": "http://inventory-service"
           }
         }
       },
       "supplier-cluster": {
         "Destinations": {
           "supplier-service": {
-            "Address": "http://localhost:5003"
+            "Address": "http://supplier-service"
           }
         }
       },
       "report-cluster": {
         "Destinations": {
           "report-service": {
-            "Address": "http://localhost:5004"
+            "Address": "http://report-service"
           }
         }
       }
