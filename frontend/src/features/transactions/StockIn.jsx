@@ -1,13 +1,21 @@
 import React, { useState } from "react";
+import { useMutation } from "@tanstack/react-query"; // BỔ SUNG: Import hook gọi API
+import { toast } from "sonner"; // BỔ SUNG: Import thư viện thông báo
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Modal from "../../components/ui/Modal";
 import AddStockItemForm from "./AddStockItemForm";
+import { stockService } from "../../services/stockService"; // BỔ SUNG: Import service
 
 export default function StockIn() {
-    // 1. Khởi tạo state
+    // 1. Khởi tạo state gốc
     const [items, setItems] = useState([]);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+    // BỔ SUNG: State lưu thông tin các trường nhập liệu
+    const [supplier, setSupplier] = useState("");
+    const [importDate, setImportDate] = useState("");
+    const [note, setNote] = useState("");
 
     // 2. Hàm thêm sản phẩm vào bảng
     const handleAddItemToList = (data) => {
@@ -49,6 +57,43 @@ export default function StockIn() {
         (sum, item) => sum + item.quantity * item.importPrice,
         0,
     );
+
+    // BỔ SUNG: Logic gọi API tạo Phiếu Nhập Kho
+    const createTicketMutation = useMutation({
+        mutationFn: (newTicket) => stockService.createInwardTicket(newTicket),
+        onSuccess: () => {
+            toast.success("Lưu phiếu nhập kho thành công!");
+            // Xóa trắng form sau khi tạo thành công
+            setItems([]);
+            setSupplier("");
+            setImportDate("");
+            setNote("");
+        },
+        onError: () => {
+            toast.error("Có lỗi xảy ra khi lưu phiếu nhập!");
+        }
+    });
+
+    // BỔ SUNG: Hàm "gọt" dữ liệu và gửi lên Server khi bấm nút Xác nhận
+    const handleSubmit = () => {
+        if (!supplier) {
+            toast.warning("Vui lòng chọn Nhà cung cấp!");
+            return;
+        }
+
+        // Format lại mảng items theo chuẩn API Contract
+        const formattedItems = items.map((item) => ({
+            productId: item.id || item.tempId, // Đảm bảo lấy ID thật của sản phẩm
+            quantity: item.quantity,
+            price: item.importPrice
+        }));
+
+        createTicketMutation.mutate({
+            supplierId: parseInt(supplier),
+            note: note,
+            items: formattedItems
+        });
+    };
 
     return (
         <div className="max-w-7xl mx-auto">
@@ -98,6 +143,8 @@ export default function StockIn() {
                                 <div className="relative">
                                     <select
                                         id="nha-cung-cap"
+                                        value={supplier} // BỔ SUNG: Bind value
+                                        onChange={(e) => setSupplier(e.target.value)} // BỔ SUNG: Event onChange
                                         className="flex h-12 w-full rounded-md border border-outline-variant/30 bg-surface-container-low px-4 py-3 text-base shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary cursor-pointer appearance-none"
                                     >
                                         <option value="">
@@ -125,6 +172,8 @@ export default function StockIn() {
                                 <Input
                                     id="ngay-nhap"
                                     type="date"
+                                    value={importDate} // BỔ SUNG: Bind value
+                                    onChange={(e) => setImportDate(e.target.value)} // BỔ SUNG: Event onChange
                                     className="bg-surface-container-low border-outline-variant/30 focus-visible:ring-primary text-base h-12 shadow-sm block"
                                 />
                             </div>
@@ -137,6 +186,8 @@ export default function StockIn() {
                                 </Label>
                                 <textarea
                                     id="ghi-chu"
+                                    value={note} // BỔ SUNG: Bind value
+                                    onChange={(e) => setNote(e.target.value)} // BỔ SUNG: Event onChange
                                     className="flex w-full rounded-md border border-outline-variant/30 bg-surface-container-low px-4 py-3 text-base shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary resize-none"
                                     placeholder="Nhập ghi chú chi tiết về lô hàng..."
                                     rows="4"
@@ -321,12 +372,13 @@ export default function StockIn() {
                                 </button>
                             </div>
                             <button
-                                disabled={items.length === 0}
+                                onClick={handleSubmit} // BỔ SUNG: Gọi hàm khi bấm
+                                disabled={items.length === 0 || createTicketMutation.isPending} // BỔ SUNG: Khóa khi chưa có hàng hoặc đang loading
                                 className="bg-primary text-white px-8 py-4 rounded-xl text-base font-bold shadow-lg shadow-primary/30 flex items-center gap-3 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
                             >
-                                Xác nhận nhập kho
+                                {createTicketMutation.isPending ? "Đang xử lý..." : "Xác nhận nhập kho"}
                                 <span className="material-symbols-outlined text-xl">
-                                    save
+                                    {createTicketMutation.isPending ? "sync" : "save"}
                                 </span>
                             </button>
                         </div>

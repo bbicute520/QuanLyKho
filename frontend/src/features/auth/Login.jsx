@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner"; 
 import { Box, User, Lock, Eye, EyeOff, ArrowRight, Package } from "lucide-react";
-import api from "../../lib/api"; 
+import api from "../../lib/axios";
 import useAuthStore from "../../lib/authStore"; // Import store đã tạo
 
 export default function Login() {

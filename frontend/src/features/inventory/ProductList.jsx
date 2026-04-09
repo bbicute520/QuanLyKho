@@ -1,116 +1,115 @@
-import React, { useState } from 'react';
-import { Search, Filter, MoreVertical, ChevronLeft, ChevronRight, Package, AlertTriangle, XCircle, TrendingUp } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'; // Thêm useMutation, useQueryClient
+import { 
+  Search, Filter, MoreVertical, ChevronLeft, ChevronRight, 
+  Loader2, AlertCircle, TrendingUp 
+} from 'lucide-react';
+import { toast } from 'sonner';
+
 import Modal from '../../components/ui/Modal';
 import ProductFilterForm from './ProductFilterForm';
+import { productService } from '../../services/productService'; 
 
 export default function ProductList() {
+    const queryClient = useQueryClient(); // Khởi tạo bộ làm mới data
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
     const [activeFilters, setActiveFilters] = useState({
         category: 'Tất cả',
         status: 'Tất cả',
         minStock: '',
     });
 
-    const mockProducts = [
-        { 
-            id: 1, 
-            sku: 'WAT-K22-421', 
-            name: 'Đồng hồ Kinetic Series 5', 
-            category: 'Phụ kiện', 
-            stock: 142, 
-            price: '2.500.000',
-            status: 'Còn hàng' 
+    // 1. API: Lấy danh sách sản phẩm
+    const { data: products = [], isLoading, isError, refetch } = useQuery({
+        queryKey: ['products'],
+        queryFn: async () => {
+            const response = await productService.getAll();
+            return response.data || response; // Tự động bóc tách array data
         },
-        { 
-            id: 2, 
-            sku: 'AUD-P99-900', 
-            name: 'Tai nghe Studio Pro Wireless', 
-            category: 'Âm thanh', 
-            stock: 0, 
-            price: '4.200.000',
-            status: 'Hết hàng' 
+        onError: () => toast.error("Không thể kết nối máy chủ!")
+    });
+
+    // 2. API: Xóa sản phẩm
+    const deleteMutation = useMutation({
+        mutationFn: (id) => productService.delete(id),
+        onSuccess: () => {
+            toast.success("Xóa thành công!");
+            queryClient.invalidateQueries(['products']); // Tự động load lại bảng
         },
-        { 
-            id: 3, 
-            sku: 'SHO-X2-RED', 
-            name: 'Giày thể thao Swift Runner', 
-            category: 'Thời trang', 
-            stock: 12, 
-            price: '1.850.000',
-            status: 'Sắp hết' 
+        onError: () => toast.error("Lỗi khi xóa sản phẩm!")
+    });
+
+    // 3. Lọc dữ liệu
+    const filteredProducts = useMemo(() => {
+        if (!Array.isArray(products)) return []; // Đề phòng lỗi crash map()
+
+        return products.filter(product => {
+            const matchesSearch = 
+                product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                product.sku?.toLowerCase().includes(searchTerm.toLowerCase());
+
+            const matchesCategory = 
+                activeFilters.category === 'Tất cả' || product.category === activeFilters.category;
+
+            let matchesStatus = true;
+            if (activeFilters.status === 'Hết hàng') matchesStatus = product.stock === 0;
+            else if (activeFilters.status === 'Sắp hết') matchesStatus = product.stock > 0 && product.stock <= 30;
+            else if (activeFilters.status === 'Còn hàng') matchesStatus = product.stock > 30;
+
+            const matchesMinStock = 
+                activeFilters.minStock === '' || product.stock >= parseInt(activeFilters.minStock);
+
+            return matchesSearch && matchesCategory && matchesStatus && matchesMinStock;
+        });
+    }, [products, searchTerm, activeFilters]);
+
+    // Thao tác nhanh (Đã cắm API Xóa)
+    const handleAction = (action, id, name) => {
+        if (action === 'delete') {
+            if(window.confirm(`Xác nhận xóa sản phẩm: ${name}?`)) {
+                deleteMutation.mutate(id);
+            }
         }
-    ];
+    };
 
     return (
         <div className="max-w-7xl mx-auto not-italic">
             {/* Page Header */}
-            <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div>
-                    <h2 className="text-4xl font-black tracking-tight text-slate-900 mb-3 uppercase">
-                        Danh sách sản phẩm
-                    </h2>
-                    <p className="text-slate-500 text-base max-w-lg font-medium">
-                        Quản lý kho hàng kỹ thuật số với độ chính xác cao. Theo dõi tồn kho và luồng hàng hóa theo thời gian thực.
-                    </p>
-                </div>
+            <div className="mb-10">
+                <h2 className="text-4xl font-black tracking-tight text-slate-900 mb-3 uppercase">
+                    Danh sách sản phẩm
+                </h2>
+                <p className="text-slate-500 text-base max-w-lg font-medium">
+                    Quản lý kho hàng với dữ liệu thời gian thực từ hệ thống.
+                </p>
             </div>
 
-            {/* KPI Summary (Y hệt SupplierList) */}
+            {/* KPI Summary (Giữ nguyên của sếp) */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-                {/* Tổng sản phẩm */}
-                <div className="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/10 border-l-4 border-l-primary relative overflow-hidden group hover:shadow-md transition-shadow duration-300">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Tổng sản phẩm</p>
-                    <div className="flex items-end justify-between">
-                        <span className="text-5xl font-black text-slate-900 tracking-tighter">1.284</span>
-                        <span className="text-sm font-bold text-primary bg-primary-fixed px-3 py-1 rounded-md">+12%</span>
-                    </div>
-                </div>
-
-                {/* Sắp hết hàng */}
-                <div className="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/10 border-l-4 border-l-tertiary-container relative overflow-hidden group hover:shadow-md transition-shadow duration-300">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Sắp hết hàng</p>
-                    <div className="flex items-end justify-between">
-                        <span className="text-5xl font-black text-slate-900 tracking-tighter text-tertiary">42</span>
-                        <span className="text-sm font-bold text-tertiary bg-tertiary-fixed px-3 py-1 rounded-md">Cần nhập</span>
-                    </div>
-                </div>
-
-                {/* Đã hết hàng */}
-                <div className="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/10 border-l-4 border-l-error relative overflow-hidden group hover:shadow-md transition-shadow duration-300">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Đã hết hàng</p>
-                    <div className="flex items-end justify-between">
-                        <span className="text-5xl font-black text-slate-900 tracking-tighter text-error">12</span>
-                        <span className="material-symbols-outlined text-error text-3xl" style={{ fontVariationSettings: '"FILL" 1' }}>warning</span>
-                    </div>
-                </div>
-
-                {/* Giá trị kho */}
-                <div className="bg-surface-container-lowest p-6 rounded-xl shadow-sm border border-outline-variant/10 border-l-4 border-l-secondary-container relative overflow-hidden group hover:shadow-md transition-shadow duration-300">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Giá trị kho</p>
-                    <div className="flex items-end justify-between">
-                        <span className="text-4xl font-black text-slate-900 tracking-tighter uppercase">2.4B</span>
-                        <span className="text-[10px] font-black text-slate-400 uppercase">VNĐ</span>
-                    </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border-l-4 border-l-primary">
+                    <p className="text-xs font-bold text-slate-400 uppercase mb-2">Tổng sản phẩm</p>
+                    <span className="text-4xl font-black text-slate-900">{products.length}</span>
                 </div>
             </div>
 
-            {/* Search Bar Section */}
+            {/* Search Bar */}
             <div className="mb-8">
-                <div className="bg-surface-container-lowest p-3 rounded-xl shadow-sm border border-outline-variant/10 flex items-center gap-4 group focus-within:border-primary/50 transition-all">
+                <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center gap-4 focus-within:border-primary/50 transition-all">
                     <div className="flex-1 flex items-center gap-3 px-4">
-                        <Search size={20} className="text-slate-400 group-focus-within:text-primary transition-colors" />
+                        <Search size={20} className="text-slate-400" />
                         <input
-                            className="w-full bg-transparent border-none focus:ring-0 text-base py-2 placeholder:text-slate-400 text-on-surface font-bold outline-none"
-                            placeholder="Tìm kiếm theo mã SKU, tên sản phẩm hoặc danh mục..."
-                            type="text"
+                            className="w-full bg-transparent border-none focus:ring-0 text-base py-2 font-bold outline-none"
+                            placeholder="Tìm kiếm theo SKU, tên..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <div className="h-10 w-px bg-outline-variant/20 hidden md:block"></div>
                     <button 
                         onClick={() => setIsFilterModalOpen(true)}
-                        className={`px-6 py-3 font-black text-[10px] uppercase tracking-widest rounded-lg transition-all flex items-center gap-2 ${
+                        className={`px-6 py-3 font-black text-[10px] uppercase rounded-lg flex items-center gap-2 ${
                             (activeFilters.category !== 'Tất cả' || activeFilters.status !== 'Tất cả')
-                            ? 'bg-[#003d9b] text-white shadow-lg shadow-blue-900/20' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-variant'
+                            ? 'bg-[#003d9b] text-white' : 'bg-slate-100 text-slate-500'
                         }`}
                     >
                         <Filter size={16} /> Bộ lọc nâng cao
@@ -119,58 +118,69 @@ export default function ProductList() {
             </div>
 
             {/* Data Table Section */}
-            <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/10 overflow-hidden flex flex-col">
-                <div className="overflow-x-auto">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-[400px] flex flex-col">
+                <div className="overflow-x-auto flex-1">
                     <table className="w-full text-left border-collapse">
-                        <thead className="bg-surface-container-low/60">
+                        <thead className="bg-slate-50/60">
                             <tr>
                                 <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Sản phẩm</th>
-                                <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Danh mục</th>
                                 <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Tồn kho</th>
                                 <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Giá nhập</th>
                                 <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Trạng thái</th>
-                                <th className="px-8 py-5 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Thao tác</th>
+                                <th className="px-8 py-5 text-right"></th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-outline-variant/10">
-                            {mockProducts.map((product) => (
-                                <tr key={product.id} className="hover:bg-surface-container-low/40 transition-colors group">
+                        <tbody className="divide-y divide-slate-100">
+                            {/* TRẠNG THÁI LOADING */}
+                            {isLoading && (
+                                <tr>
+                                    <td colSpan="5" className="py-20 text-center">
+                                        <Loader2 className="animate-spin mx-auto text-primary mb-2" size={32} />
+                                        <p className="text-xs font-black uppercase text-slate-400">Đang đồng bộ dữ liệu...</p>
+                                    </td>
+                                </tr>
+                            )}
+
+                            {/* TRẠNG THÁI LỖI */}
+                            {isError && (
+                                <tr>
+                                    <td colSpan="5" className="py-20 text-center text-red-500">
+                                        <AlertCircle className="mx-auto mb-2" size={32} />
+                                        <p className="font-bold">Mất kết nối API. Vui lòng kiểm tra lại.</p>
+                                    </td>
+                                </tr>
+                            )}
+
+                            {/* RENDER DỮ LIỆU */}
+                            {!isLoading && !isError && filteredProducts.map((product) => (
+                                <tr key={product.id} className="hover:bg-slate-50 transition-colors">
                                     <td className="px-8 py-6">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center font-black text-lg text-primary uppercase">
-                                                {product.name.charAt(0)}
+                                            <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center font-black text-primary uppercase border border-slate-200">
+                                                {product.name?.charAt(0)}
                                             </div>
                                             <div>
-                                                <p className="font-black text-slate-900 text-base mb-1 uppercase tracking-tight">
-                                                    {product.name}
-                                                </p>
-                                                <p className="text-[10px] text-[#003d9b] font-black font-mono tracking-widest">
-                                                    SKU: {product.sku}
-                                                </p>
+                                                <p className="font-black text-slate-900 text-base uppercase">{product.name}</p>
+                                                <p className="text-[10px] text-[#003d9b] font-black font-mono">SKU: {product.sku}</p>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-8 py-6">
-                                        <span className="px-3 py-1 rounded-md text-[10px] font-black uppercase bg-slate-100 text-slate-600 border border-slate-200">
-                                            {product.category}
-                                        </span>
-                                    </td>
-                                    <td className="px-8 py-6 text-center text-lg font-black text-slate-700">
-                                        {product.stock}
-                                    </td>
-                                    <td className="px-8 py-6 text-right text-base font-bold text-slate-600 font-mono">
-                                        {product.price}
-                                    </td>
+                                    <td className="px-8 py-6 text-center text-lg font-black text-slate-700">{product.stock}</td>
+                                    <td className="px-8 py-6 text-right font-mono font-bold text-slate-600">{product.price?.toLocaleString()} đ</td>
                                     <td className="px-8 py-6 text-center">
-                                        <span className={`whitespace-nowrap inline-flex px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                            product.status === 'Còn hàng' ? 'bg-emerald-50 text-emerald-600' : 
-                                            product.status === 'Sắp hết' ? 'bg-orange-50 text-orange-600' : 'bg-red-50 text-red-600'
+                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase ${
+                                            product.stock > 30 ? 'bg-emerald-50 text-emerald-600' : 
+                                            product.stock > 0 ? 'bg-orange-50 text-orange-600' : 'bg-red-50 text-red-600'
                                         }`}>
-                                            {product.status}
+                                            {product.stock > 30 ? 'Còn hàng' : product.stock > 0 ? 'Sắp hết' : 'Hết hàng'}
                                         </span>
                                     </td>
                                     <td className="px-8 py-6 text-right">
-                                        <button className="p-2 text-slate-300 hover:text-slate-900 transition-colors">
+                                        {/* NÚT THAO TÁC (Đã gắn hàm gọi API xóa) */}
+                                        <button 
+                                            onClick={() => handleAction('delete', product.id, product.name)}
+                                            className="p-2 text-slate-300 hover:text-slate-900 transition-colors"
+                                        >
                                             <MoreVertical size={20} />
                                         </button>
                                     </td>
@@ -180,31 +190,19 @@ export default function ProductList() {
                     </table>
                 </div>
 
-                {/* Pagination (Y hệt SupplierList) */}
-                <div className="p-8 border-t border-outline-variant/10 bg-surface-container-lowest mt-auto flex items-center justify-between">
+                {/* Pagination */}
+                <div className="p-8 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between">
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                        Hiển thị <span className="text-slate-900 font-black">1-3</span> trong tổng số <span className="text-slate-900 font-black">1.284</span> sản phẩm
+                        Hiển thị <span className="text-slate-900">{filteredProducts.length}</span> / {products.length} sản phẩm
                     </p>
-                    <div className="flex items-center gap-2">
-                        <button className="w-10 h-10 rounded-lg flex items-center justify-center text-slate-400 hover:bg-surface-container-low transition-all disabled:opacity-30" disabled>
-                            <ChevronLeft size={20} />
-                        </button>
-                        <button className="w-10 h-10 rounded-lg flex items-center justify-center bg-primary text-white text-sm font-bold shadow-md shadow-primary/20">1</button>
-                        <button className="w-10 h-10 rounded-lg flex items-center justify-center text-slate-600 hover:bg-surface-container-low text-sm font-bold transition-all">2</button>
-                        <span className="px-3 text-slate-400 text-lg">...</span>
-                        <button className="w-10 h-10 rounded-lg flex items-center justify-center text-slate-600 hover:bg-surface-container-low transition-all">
-                            <ChevronRight size={20} />
-                        </button>
+                    <div className="flex gap-2">
+                        <button className="p-2 rounded-lg border border-slate-200 bg-white" onClick={() => refetch()}><TrendingUp size={18} /></button>
                     </div>
                 </div>
             </div>
 
-            {/* Modal Lọc (Gắn ProductFilterForm của sếp vào đây) */}
-            <Modal
-                isOpen={isFilterModalOpen}
-                onClose={() => setIsFilterModalOpen(false)}
-                title="Bộ lọc nâng cao"
-            >
+            {/* Modal Lọc */}
+            <Modal isOpen={isFilterModalOpen} onClose={() => setIsFilterModalOpen(false)} title="Bộ lọc nâng cao">
                 <ProductFilterForm 
                     initialFilters={activeFilters}
                     onApply={(f) => { setActiveFilters(f); setIsFilterModalOpen(false); }}

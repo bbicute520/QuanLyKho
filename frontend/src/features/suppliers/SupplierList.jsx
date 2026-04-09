@@ -1,45 +1,51 @@
-import React, { useState } from 'react';
-import { Search, Filter, MoreVertical, ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query'; // BỔ SUNG: Dùng để gọi API
+import { Search, Filter, MoreVertical, ChevronLeft, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
 import Modal from '../../components/ui/Modal';
 import SupplierFilterForm from './SupplierFilterForm';
+import { supplierService } from '../../services/supplierService'; // BỔ SUNG: Import Service
 
 export default function SupplierList() {
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState(''); // BỔ SUNG: State cho thanh tìm kiếm
     const [activeFilters, setActiveFilters] = useState({
         categories: [],
         status: 'Tất cả',
         region: 'Tất cả'
     });
 
-    const mockSuppliers = [
-        { 
-            id: 'SUP-2024-001', 
-            name: 'Kinetic Alliance Ltd.', 
-            contact: 'Lê Minh Tuấn', 
-            phone: '090 123 4567', 
-            email: 'tuan.lm@kinetic.com',
-            categories: ['Điện tử', 'Âm thanh'], 
-            status: 'Đang hợp tác' 
-        },
-        { 
-            id: 'SUP-2024-042', 
-            name: 'Global Logistics Co.', 
-            contact: 'Nguyễn Thị Hồng', 
-            phone: '091 888 9999', 
-            email: 'hong.nt@globallog.vn',
-            categories: ['Vận tải'], 
-            status: 'Đang hợp tác' 
-        },
-        { 
-            id: 'SUP-2023-115', 
-            name: 'Fashion Hub Supply', 
-            contact: 'Trần Đại Quang', 
-            phone: '098 555 1234', 
-            email: 'quang.td@fashion.com',
-            categories: ['Thời trang', 'Phụ kiện', 'Gia dụng'], 
-            status: 'Đang gia hạn' 
+    // CẮM DÂY API: Kéo danh sách đối tác từ API Gateway
+    const { data: suppliers = [], isLoading, isError } = useQuery({
+        queryKey: ['suppliers'],
+        queryFn: async () => {
+            const response = await supplierService.getAll();
+            return response.data || response;
         }
-    ];
+    });
+
+    // LOGIC LỌC DỮ LIỆU TẠI FRONTEND
+    const filteredSuppliers = useMemo(() => {
+        if (!Array.isArray(suppliers)) return [];
+        
+        return suppliers.filter(sup => {
+            // Lọc theo text gõ vào ô search
+            const searchLower = searchTerm.toLowerCase();
+            const matchesSearch = 
+                sup.name?.toLowerCase().includes(searchLower) ||
+                sup.id?.toLowerCase().includes(searchLower) ||
+                sup.categories?.some(c => c.toLowerCase().includes(searchLower));
+
+            // Lọc theo trạng thái & khu vực
+            const matchesStatus = activeFilters.status === 'Tất cả' || sup.status === activeFilters.status;
+            const matchesRegion = activeFilters.region === 'Tất cả' || sup.region === activeFilters.region;
+
+            // Lọc theo mảng ngành hàng
+            const matchesCategory = activeFilters.categories.length === 0 || 
+                sup.categories?.some(c => activeFilters.categories.includes(c));
+
+            return matchesSearch && matchesStatus && matchesRegion && matchesCategory;
+        });
+    }, [suppliers, searchTerm, activeFilters]);
 
     return (
         <div className="max-w-7xl mx-auto not-italic">
@@ -63,12 +69,14 @@ export default function SupplierList() {
                             className="w-full bg-transparent border-none focus:ring-0 text-base py-2 text-slate-900 font-bold outline-none"
                             placeholder="Tìm kiếm theo tên, mã hoặc ngành hàng..."
                             type="text"
+                            value={searchTerm} // GẮN STATE
+                            onChange={(e) => setSearchTerm(e.target.value)} // GẮN SỰ KIỆN GÕ PHÍM
                         />
                     </div>
                     <button 
                         onClick={() => setIsFilterModalOpen(true)}
                         className={`px-6 py-3 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all flex items-center gap-2 ${
-                            (activeFilters.categories.length > 0 || activeFilters.status !== 'Tất cả')
+                            (activeFilters.categories.length > 0 || activeFilters.status !== 'Tất cả' || activeFilters.region !== 'Tất cả')
                             ? 'bg-[#003d9b] text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                         }`}
                     >
@@ -91,7 +99,19 @@ export default function SupplierList() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {mockSuppliers.map((sup) => (
+                            {/* RENDER TRẠNG THÁI ĐANG TẢI / LỖI */}
+                            {isLoading && (
+                                <tr><td colSpan="5" className="py-20 text-center"><Loader2 className="animate-spin mx-auto text-[#003d9b]" size={32} /></td></tr>
+                            )}
+                            {isError && (
+                                <tr><td colSpan="5" className="py-20 text-center text-red-500"><AlertCircle className="mx-auto" size={32} /><p className="font-bold mt-2">Lỗi kết nối API!</p></td></tr>
+                            )}
+                            {!isLoading && !isError && filteredSuppliers.length === 0 && (
+                                <tr><td colSpan="5" className="py-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">Không tìm thấy đối tác nào</td></tr>
+                            )}
+
+                            {/* RENDER DỮ LIỆU ĐÃ LỌC TỪ API */}
+                            {!isLoading && !isError && filteredSuppliers.map((sup) => (
                                 <tr key={sup.id} className="hover:bg-slate-50/50 transition-colors">
                                     <td className="px-8 py-6">
                                         <p className="font-black text-slate-900 text-base uppercase tracking-tight">{sup.name}</p>
@@ -99,7 +119,7 @@ export default function SupplierList() {
                                     </td>
                                     <td className="px-8 py-6">
                                         <div className="flex flex-wrap gap-1.5 max-w-[250px]">
-                                            {sup.categories.map(cat => (
+                                            {(sup.categories || []).map(cat => (
                                                 <span key={cat} className="px-2.5 py-1 rounded-md text-[9px] font-black uppercase bg-blue-50 text-[#003d9b] border border-blue-100">
                                                     {cat}
                                                 </span>
@@ -112,7 +132,8 @@ export default function SupplierList() {
                                     </td>
                                     <td className="px-8 py-6 text-center">
                                         <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                            sup.status === 'Đang hợp tác' ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'
+                                            sup.status === 'Đang hợp tác' ? 'bg-emerald-50 text-emerald-600' : 
+                                            sup.status === 'Tạm dừng' ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
                                         }`}>
                                             {sup.status}
                                         </span>
@@ -126,9 +147,11 @@ export default function SupplierList() {
                     </table>
                 </div>
 
-                {/* Pagination */}
+                {/* Pagination (Cập nhật số đếm bằng số liệu thật) */}
                 <div className="p-8 border-t border-slate-100 flex items-center justify-between bg-slate-50/30">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Hiển thị <span className="text-slate-900">3</span> / 124 đối tác</p>
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                        Hiển thị <span className="text-slate-900">{filteredSuppliers.length}</span> / {suppliers.length} đối tác
+                    </p>
                     <div className="flex gap-2">
                         <button className="p-2 rounded-lg border border-slate-200 bg-white opacity-30" disabled><ChevronLeft size={18}/></button>
                         <button className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50"><ChevronRight size={18}/></button>

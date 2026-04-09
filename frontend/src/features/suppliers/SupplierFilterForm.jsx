@@ -1,14 +1,27 @@
 import React, { useState } from 'react';
-import { Check, RotateCcw } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query'; // BỔ SUNG: Dùng gọi API
+import { Check, RotateCcw, Loader2 } from 'lucide-react';
+import { supplierService } from '../../services/supplierService'; // BỔ SUNG: Import service
 
 export default function SupplierFilterForm({ onApply, onReset, onClose, initialFilters }) {
   const [filters, setFilters] = useState(initialFilters || {
-    categories: [], // Cho phép chọn nhiều ngành hàng
+    categories: [], 
     status: 'Tất cả',
     region: 'Tất cả'
   });
 
-  const allCategories = ['Điện tử', 'Âm thanh', 'Phụ kiện', 'Thời trang', 'Gia dụng', 'Vận tải'];
+  // CẮM DÂY API: Lấy danh mục động từ Backend
+  const { data: dbCategories = [], isLoading } = useQuery({
+      queryKey: ['supplier-categories'],
+      queryFn: async () => {
+          const response = await supplierService.getCategories();
+          return response.data || response;
+      }
+  });
+
+  // Áp dụng data API (nếu API sập hoặc chưa load xong thì hiển thị tạm cái cũ để không bể UI)
+  const allCategories = dbCategories.length > 0 ? dbCategories.map(c => c.name || c) : ['Điện tử', 'Âm thanh', 'Phụ kiện', 'Thời trang', 'Gia dụng', 'Vận tải'];
+  
   const statuses = ['Tất cả', 'Đang hợp tác', 'Đang gia hạn', 'Tạm dừng'];
   const regions = ['Tất cả', 'Miền Bắc', 'Miền Trung', 'Miền Nam', 'Quốc tế'];
 
@@ -23,9 +36,12 @@ export default function SupplierFilterForm({ onApply, onReset, onClose, initialF
 
   return (
     <div className="space-y-8 not-italic">
-      {/* 1. Lọc theo Ngành hàng (Multi-select tags) */}
+      {/* 1. Lọc theo Ngành hàng */}
       <div className="space-y-4">
-        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-[#003d9b]">Ngành hàng cung ứng</label>
+        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-[#003d9b] flex items-center gap-2">
+            Ngành hàng cung ứng
+            {isLoading && <Loader2 size={12} className="animate-spin" />}
+        </label>
         <div className="flex flex-wrap gap-2">
           {allCategories.map((cat) => (
             <button

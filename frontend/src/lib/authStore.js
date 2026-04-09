@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-// Tạo store để quản lý trạng thái đăng nhập
 const useAuthStore = create(
   persist(
     (set) => ({
@@ -10,24 +9,36 @@ const useAuthStore = create(
       user: null,
       isAuthenticated: false,
 
-      // Hành động: Lưu thông tin sau khi Login thành công
-      setAuth: (token, role, user = null) => set({ 
-        token, 
-        role, 
-        user, 
-        isAuthenticated: true 
-      }),
+      // Hành động: Login thành công
+      setAuth: (token, role, user = null) => {
+        // 1. LƯU RIÊNG TOKEN CHO AXIOS ĐỌC
+        localStorage.setItem('access_token', token); 
+        
+        // 2. Cập nhật state cho giao diện
+        set({ 
+          token, 
+          role, 
+          user, 
+          isAuthenticated: true 
+        });
+      },
 
-      // Hành động: Đăng xuất (xóa sạch dữ liệu)
-      logout: () => set({ 
-        token: null, 
-        role: null, 
-        user: null, 
-        isAuthenticated: false 
-      }),
+      // Hành động: Đăng xuất
+      logout: () => {
+        // Xóa token riêng của Axios
+        localStorage.removeItem('access_token'); 
+        
+        // Xóa state giao diện
+        set({ 
+          token: null, 
+          role: null, 
+          user: null, 
+          isAuthenticated: false 
+        });
+      },
     }),
     {
-      name: 'syncstock-auth-storage', // Tên key lưu dưới localStorage
+      name: 'syncstock-auth-storage', 
     }
   )
 );

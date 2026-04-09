@@ -2,15 +2,15 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 
 const ProtectedRoute = () => {
-  // Kiểm tra xem trong máy có lưu "token" đăng nhập chưa
-  const token = localStorage.getItem('token');
+  // SỬA Ở ĐÂY: Phải lấy đúng cái tên 'access_token' sếp đã đặt trong authStore
+  const token = localStorage.getItem('access_token'); 
 
-  // Nếu KHÔNG có token -> "Đá" về trang Login
   if (!token) {
+    // Nếu KHÔNG có token -> "Đá" về trang Login
     return <Navigate to="/login" replace />;
   }
 
-  // Nếu CÓ token -> Cho phép đi tiếp vào các trang con (Dashboard, Products...)
+  // Nếu CÓ token -> Cho phép đi tiếp vào các trang con
   return <Outlet />;
 };
 

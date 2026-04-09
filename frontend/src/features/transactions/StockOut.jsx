@@ -1,13 +1,31 @@
 import React, { useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query"; // BỔ SUNG: Thêm useQuery
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Modal from "../../components/ui/Modal";
 import AddStockOutItemForm from "./AddStockOutItemForm";
+import { stockService } from "../../services/stockService";
 
 export default function StockOut() {
     // 1. Khởi tạo state
     const [items, setItems] = useState([]);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+    // State lưu thông tin phiếu xuất
+    const [customer, setCustomer] = useState("");
+    const [exportDate, setExportDate] = useState("");
+    const [note, setNote] = useState("");
+
+    // --- BỔ SUNG: API LẤY DANH SÁCH HÀNG TRONG KHO ---
+    const { data: inventoryData = [], isLoading: isInventoryLoading } =
+        useQuery({
+            queryKey: ["warehouse-inventory"],
+            queryFn: async () => {
+                const res = await stockService.getInventory();
+                return res.data;
+            },
+        });
 
     // 2. Hàm thêm sản phẩm vào bảng
     const handleAddItemToList = (data) => {
@@ -52,6 +70,35 @@ export default function StockOut() {
     const removeItem = (id) => {
         setItems(items.filter((item) => item.tempId !== id));
     };
+
+    // Mutation API để Gửi dữ liệu Phiếu Xuất Kho
+    const createTicketMutation = useMutation({
+        mutationFn: (newTicket) => stockService.createOutwardTicket(newTicket),
+        onSuccess: () => {
+            toast.success("Lưu phiếu xuất kho thành công!");
+            // Reset lại form sau khi lưu
+            setItems([]);
+            setCustomer("");
+            setExportDate("");
+            setNote("");
+        },
+        onError: () => {
+            toast.error("Có lỗi xảy ra khi lưu phiếu xuất!");
+        },
+    });
+
+    // Hàm gọi khi bấm nút "Xác nhận xuất kho"
+    const handleSubmit = () => {
+    const formattedItems = items.map(item => ({
+        productId: item.productId || item.id, // Dùng đúng tên trường từ API
+        quantity: item.quantity
+    }));
+
+    createTicketMutation.mutate({
+        note: note,
+        items: formattedItems
+    });
+};
 
     return (
         <div className="max-w-7xl mx-auto">
@@ -102,6 +149,10 @@ export default function StockOut() {
                                     <Input
                                         id="khach-hang"
                                         placeholder="Chọn đối tác..."
+                                        value={customer}
+                                        onChange={(e) =>
+                                            setCustomer(e.target.value)
+                                        }
                                         className="bg-surface-container-low border-outline-variant/30 focus-visible:ring-primary text-base h-12 shadow-sm pr-10"
                                     />
                                     <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">
@@ -119,6 +170,10 @@ export default function StockOut() {
                                 <Input
                                     id="ngay-xuat"
                                     type="date"
+                                    value={exportDate}
+                                    onChange={(e) =>
+                                        setExportDate(e.target.value)
+                                    }
                                     className="bg-surface-container-low border-outline-variant/30 focus-visible:ring-primary text-base h-12 shadow-sm block"
                                 />
                             </div>
@@ -131,6 +186,8 @@ export default function StockOut() {
                                 </Label>
                                 <textarea
                                     id="ly-do"
+                                    value={note}
+                                    onChange={(e) => setNote(e.target.value)}
                                     className="flex w-full rounded-md border border-outline-variant/30 bg-surface-container-low px-4 py-3 text-base shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary resize-none"
                                     placeholder="Ghi chú lý do xuất hàng..."
                                     rows="4"
@@ -149,7 +206,6 @@ export default function StockOut() {
                         <p className="text-xs font-bold uppercase tracking-widest opacity-80 mb-2">
                             Tổng sản phẩm xuất
                         </p>
-                        {/* Hiển thị số lượng SKU động */}
                         <h4 className="text-5xl font-black mb-6">
                             {items.length}{" "}
                             <span className="text-xl font-medium opacity-60">
@@ -176,7 +232,6 @@ export default function StockOut() {
                                 </span>{" "}
                                 Danh sách sản phẩm xuất
                             </h3>
-                            {/* Nút bật Modal */}
                             <button
                                 onClick={() => setIsAddModalOpen(true)}
                                 className="flex items-center gap-2 text-sm font-bold text-primary hover:bg-primary-fixed px-4 py-2 rounded-lg transition-colors"
@@ -241,7 +296,6 @@ export default function StockOut() {
                                                     </span>
                                                 </td>
                                                 <td className="px-8 py-6 text-center">
-                                                    {/* Input điều khiển số lượng trực tiếp trên bảng */}
                                                     <Input
                                                         type="number"
                                                         min="1"
@@ -291,12 +345,20 @@ export default function StockOut() {
                                 </button>
                             </div>
                             <button
-                                disabled={items.length === 0}
+                                onClick={handleSubmit}
+                                disabled={
+                                    items.length === 0 ||
+                                    createTicketMutation.isPending
+                                }
                                 className="bg-primary text-white px-8 py-4 rounded-xl text-base font-bold shadow-lg shadow-primary/30 flex items-center gap-3 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
                             >
-                                Xác nhận xuất kho
+                                {createTicketMutation.isPending
+                                    ? "Đang xử lý..."
+                                    : "Xác nhận xuất kho"}
                                 <span className="material-symbols-outlined text-xl">
-                                    rocket_launch
+                                    {createTicketMutation.isPending
+                                        ? "sync"
+                                        : "rocket_launch"}
                                 </span>
                             </button>
                         </div>
@@ -304,13 +366,15 @@ export default function StockOut() {
                 </div>
             </div>
 
-            {/* Gọi Component Form riêng để chọn hàng */}
+            {/* BỔ SUNG: Truyền cục data từ API vào thẳng Component Form */}
             <Modal
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 title="Tìm & Chọn Hàng Xuất Kho"
             >
                 <AddStockOutItemForm
+                    inventory={inventoryData}
+                    isLoading={isInventoryLoading}
                     onAdd={handleAddItemToList}
                     onClose={() => setIsAddModalOpen(false)}
                 />
