@@ -1,51 +1,62 @@
 import React, { useState } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner"; 
+import { Box, User, Lock, Eye, EyeOff, ArrowRight, Package } from "lucide-react";
+import api from "../../lib/axios";
+import useAuthStore from "../../lib/authStore"; // Import store đã tạo
 
 export default function Login() {
-  // 1. Khởi tạo State
-  const [email, setEmail] = useState("");
+  // 1. Khởi tạo State và Store
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
+  
+  // Lấy hàm setAuth từ Zustand Store để sử dụng
+  const setAuth = useAuthStore((state) => state.setAuth);
 
   // 2. Hàm xử lý Đăng nhập
   const handleLogin = async (e) => {
     e.preventDefault(); 
-    setErrorMsg(""); 
 
-    if (!email || !password) {
-      setErrorMsg("Vui lòng nhập đầy đủ Email và Mật khẩu!");
+    if (!username || !password) {
+      toast.error("Vui lòng nhập đầy đủ Tên đăng nhập và Mật khẩu!");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // Thay đổi URL này thành URL API thật của bạn
-      const response = await axios.post(
-        "https://api.domain.com/api/auth/login",
-        {
-          email: email,
-          password: password,
-        }
-      );
+      // Gọi API thật từ Backend
+      const response = await api.post("/auth/login", {
+        username: username,
+        password: password,
+      });
 
-      const token = response.data.access_token;
+      // Lấy token và role từ response data
+      const { token, role } = response.data;
 
       if (token) {
-        localStorage.setItem("token", token);
-        alert("Đăng nhập thành công!");
-        navigate("/dashboard");
+        // --- THAY ĐỔI QUAN TRỌNG Ở ĐÂY ---
+        // Thay vì localStorage.setItem thủ công, ta dùng Zustand
+        // Nó sẽ tự động lo việc lưu trữ và đồng bộ toàn hệ thống
+        setAuth(token, role); 
+
+        toast.success("Đăng nhập thành công! Hệ thống đã sẵn sàng.");
+        
+        // Chuyển hướng
+        setTimeout(() => {
+          navigate("/dashboard");
+        }, 800);
       }
     } catch (error) {
       console.error("Lỗi đăng nhập:", error);
       if (error.response && error.response.status === 401) {
-        setErrorMsg("Email hoặc mật khẩu không chính xác!");
+        toast.error("Tên đăng nhập hoặc mật khẩu không chính xác!");
       } else {
-        setErrorMsg("Lỗi kết nối đến máy chủ. Vui lòng thử lại!");
+        toast.error("Lỗi kết nối đến máy chủ. Vui lòng thử lại!");
       }
     } finally {
       setIsLoading(false);
@@ -53,44 +64,44 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden bg-[#f9f9ff]">
+    <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden bg-[#f9f9ff] not-italic">
       {/* Background Decor */}
       <div className="absolute top-0 left-0 w-full h-full -z-10 opacity-40">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-surface-container-high rounded-full blur-[120px]"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary-fixed rounded-full blur-[150px]"></div>
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-200 rounded-full blur-[120px]"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-200 rounded-full blur-[150px]"></div>
       </div>
 
-      <div className="w-full max-w-[1200px] grid lg:grid-cols-2 rounded-xl overflow-hidden shadow-[0_12px_32px_-4px_rgba(9,28,53,0.08)] bg-surface-container-lowest">
+      <div className="w-full max-w-[1200px] grid lg:grid-cols-2 rounded-xl overflow-hidden shadow-[0_12px_32px_-4px_rgba(9,28,53,0.08)] bg-white">
         {/* CỘT TRÁI: Branding */}
-        <div className="hidden lg:flex flex-col justify-between p-12 bg-primary relative overflow-hidden">
+        <div className="hidden lg:flex flex-col justify-between p-12 bg-[#003d9b] relative overflow-hidden">
           <div className="relative z-10">
             <div className="flex items-center gap-2 mb-12">
               <div className="w-10 h-10 bg-white rounded flex items-center justify-center">
-                <span className="material-symbols-outlined text-primary text-2xl">architecture</span>
+                <Box className="text-[#003d9b]" size={24} strokeWidth={2.5} />
               </div>
-              <span className="text-white text-2xl font-black tracking-tighter">SyncStock</span>
+              <span className="text-white text-2xl font-black tracking-tighter uppercase">SyncStock</span>
             </div>
-            <h1 className="text-white text-5xl font-bold leading-tight tracking-tight mb-6">
+            <h1 className="text-white text-5xl font-black leading-tight tracking-tight mb-6 uppercase">
               Precision in every <br /> movement.
             </h1>
-            <p className="text-white/80 text-lg max-w-md">
+            <p className="text-white/80 text-lg max-w-md font-medium">
               The editorial control center for modern warehouse management. Seamlessly track, analyze, and optimize your logistical flow.
             </p>
           </div>
 
           <div className="relative z-10 flex gap-8">
             <div>
-              <div className="text-white text-3xl font-bold">99.9%</div>
-              <div className="text-white/60 text-xs uppercase tracking-widest font-semibold mt-1">Uptime Reliable</div>
+              <div className="text-white text-3xl font-black uppercase">99.9%</div>
+              <div className="text-white/60 text-xs uppercase tracking-widest font-bold mt-1">Uptime Reliable</div>
             </div>
             <div>
-              <div className="text-white text-3xl font-bold">2.4M</div>
-              <div className="text-white/60 text-xs uppercase tracking-widest font-semibold mt-1">Items Processed</div>
+              <div className="text-white text-3xl font-black uppercase">2.4M</div>
+              <div className="text-white/60 text-xs uppercase tracking-widest font-bold mt-1">Items Processed</div>
             </div>
           </div>
 
-          <div className="absolute top-1/2 right-0 translate-x-1/4 -translate-y-1/2 opacity-20">
-            <span className="material-symbols-outlined text-[400px] text-white" style={{ fontVariationSettings: '"wght" 100' }}>inventory_2</span>
+          <div className="absolute top-1/2 right-0 translate-x-1/4 -translate-y-1/2 opacity-10">
+            <Package size={400} strokeWidth={1} className="text-white" />
           </div>
         </div>
 
@@ -98,85 +109,83 @@ export default function Login() {
         <div className="p-8 md:p-16 flex flex-col justify-center bg-white">
           <div className="max-w-sm mx-auto w-full">
             <div className="lg:hidden flex items-center gap-2 mb-12">
-              <span className="material-symbols-outlined text-primary text-3xl">architecture</span>
-              <span className="text-on-background text-xl font-black tracking-tighter">SyncStock</span>
+              <Box className="text-[#003d9b]" size={32} strokeWidth={2.5} />
+              <span className="text-slate-900 text-xl font-black tracking-tighter uppercase">SyncStock</span>
             </div>
 
             <div className="mb-10">
-              <h2 className="text-on-surface text-3xl font-bold tracking-tight mb-2">Welcome Back</h2>
-              <p className="text-on-surface-variant text-sm">Enter your credentials to access the WMS Control Center.</p>
+              <h2 className="text-slate-900 text-3xl font-black tracking-tight mb-2 uppercase">Welcome Back</h2>
+              <p className="text-slate-500 text-sm font-medium">Enter your credentials to access the WMS Control Center.</p>
             </div>
-
-            {errorMsg && (
-              <div className="mb-6 p-3 bg-red-50 text-error rounded-md text-sm font-medium border border-error/20">
-                {errorMsg}
-              </div>
-            )}
 
             <form className="space-y-6" onSubmit={handleLogin}>
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1" htmlFor="email">
-                  Email đăng nhập
+                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1" htmlFor="username">
+                  Tên đăng nhập
                 </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <span className="material-symbols-outlined text-slate-400 text-xl group-focus-within:text-primary transition-colors">mail</span>
+                    <User className="text-slate-300 group-focus-within:text-[#003d9b] transition-colors" size={18} />
                   </div>
                   <input
-                    className="w-full bg-slate-50 border-none border-b border-slate-200 focus:ring-0 focus:border-primary transition-all rounded-md pl-12 py-4 text-on-surface"
-                    id="email"
-                    placeholder="name@company.com"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-slate-50 border-none border-b border-slate-200 focus:ring-0 focus:border-[#003d9b] transition-all rounded-md pl-12 py-4 text-slate-900 font-bold outline-none"
+                    id="username"
+                    placeholder="Nhập tên tài khoản..."
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2 ml-1" htmlFor="password">
+                <label className="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 ml-1" htmlFor="password">
                   Mật khẩu
                 </label>
                 <div className="relative group">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <span className="material-symbols-outlined text-slate-400 text-xl group-focus-within:text-primary transition-colors">lock</span>
+                    <Lock className="text-slate-300 group-focus-within:text-[#003d9b] transition-colors" size={18} />
                   </div>
                   <input
-                    className="w-full bg-slate-50 border-none border-b border-slate-200 focus:ring-0 focus:border-primary transition-all rounded-md pl-12 pr-12 py-4 text-on-surface"
+                    className="w-full bg-slate-50 border-none border-b border-slate-200 focus:ring-0 focus:border-[#003d9b] transition-all rounded-md pl-12 pr-12 py-4 text-slate-900 font-bold outline-none"
                     id="password"
                     placeholder="••••••••"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
-                  <button className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-on-surface transition-colors" type="button">
-                    <span className="material-symbols-outlined">visibility</span>
+                  <button 
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-700 transition-colors" 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
               </div>
 
               <div className="flex items-center justify-between py-2">
                 <label className="flex items-center cursor-pointer group">
-                  <input className="peer h-5 w-5 rounded border-slate-300 text-primary focus:ring-primary/20 transition-all cursor-pointer" type="checkbox" />
-                  <span className="ml-3 text-sm text-on-surface-variant font-medium group-hover:text-on-surface transition-colors">Ghi nhớ tài khoản</span>
+                  <input className="peer h-4 w-4 rounded border-slate-300 text-[#003d9b] focus:ring-[#003d9b]/20 transition-all cursor-pointer" type="checkbox" />
+                  <span className="ml-3 text-xs text-slate-500 font-bold uppercase tracking-widest group-hover:text-slate-800 transition-colors">Ghi nhớ</span>
                 </label>
-                <a className="text-sm font-semibold text-primary hover:opacity-80 transition-colors" href="#">Quên mật khẩu?</a>
+                <a className="text-xs font-black text-[#003d9b] uppercase tracking-widest hover:opacity-80 transition-colors" href="#">Quên mật khẩu?</a>
               </div>
 
               <button
                 disabled={isLoading}
-                className={`w-full text-white font-bold py-4 rounded-md shadow-lg transition-all flex items-center justify-center gap-2 ${
-                  isLoading ? "bg-slate-400 cursor-not-allowed" : "bg-primary shadow-primary/20 hover:scale-[1.01] active:scale-[0.99]"
+                className={`w-full text-white font-black py-5 rounded-xl shadow-xl transition-all flex items-center justify-center gap-3 uppercase tracking-[0.1em] text-xs ${
+                  isLoading ? "bg-slate-400 cursor-not-allowed shadow-none" : "bg-[#003d9b] shadow-blue-900/20 hover:scale-[1.02] active:scale-95 hover:bg-blue-800"
                 }`}
                 type="submit"
               >
-                <span>{isLoading ? "Đang xử lý..." : "Đăng nhập"}</span>
-                {!isLoading && <span className="material-symbols-outlined text-xl">arrow_forward</span>}
+                <span>{isLoading ? "Đang xử lý..." : "Đăng nhập hệ thống"}</span>
+                {!isLoading && <ArrowRight size={18} />}
               </button>
             </form>
 
             <div className="mt-12 pt-8 border-t border-slate-100 text-center">
-              <p className="text-slate-400 text-xs uppercase tracking-widest font-medium">Secure Enterprise Infrastructure</p>
+              <p className="text-slate-300 text-[10px] uppercase font-black tracking-[0.2em]">Secure Enterprise Infrastructure</p>
             </div>
           </div>
         </div>
