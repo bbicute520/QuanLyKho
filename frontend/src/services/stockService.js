@@ -18,9 +18,8 @@ export const stockService = {
         return await axiosInstance.post('/inventory/export', ticketData);
     },
 
-    // 4. Lấy lịch sử giao dịch - Phục vụ việc vẽ biểu đồ và hiện nhật ký
-    getHistory: async () => {
-        // Trỏ về đúng endpoint trong API Contract
-        return await axiosInstance.get('/report/transactions');
+    // 4. Lấy lịch sử giao dịch từ Inventory Service
+    getHistory: async (params) => {
+        return await axiosInstance.get('/inventory/history', { params });
     }
 };

@@ -2,11 +2,24 @@
 using Microsoft.EntityFrameworkCore;
 using Inventory.Service.Data;
 using Inventory.Service.Models;
+using System.ComponentModel.DataAnnotations;
 
 [Route("api/inventory/[controller]")]
 [ApiController]
 public class ProductController : ControllerBase
 {
+    private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".jpg", ".jpeg", ".png", ".webp"
+    };
+
+    private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "image/jpeg", "image/png", "image/webp"
+    };
+
+    private const long MaxFileSizeInBytes = 5 * 1024 * 1024; // 5MB
+
     private readonly WarehouseDbContext _context;
 
     public ProductController(WarehouseDbContext context)
@@ -19,8 +32,8 @@ public class ProductController : ControllerBase
     public async Task<ActionResult<PagedResult<Product>>> GetProducts(
         [FromQuery] string? searchName,
         [FromQuery] string? category,
-        [FromQuery] int pageNumber = 1,
-        [FromQuery] int pageSize = 10)
+        [FromQuery, Range(1, int.MaxValue, ErrorMessage = "pageNumber phải lớn hơn hoặc bằng 1")] int pageNumber = 1,
+        [FromQuery, Range(1, 100, ErrorMessage = "pageSize phải nằm trong khoảng 1-100")] int pageSize = 10)
     {
         // Bắt đầu khởi tạo Query (AsNoTracking giúp tăng tốc độ do chỉ đọc dữ liệu)
         var query = _context.Products.AsNoTracking().AsQueryable();
@@ -152,6 +165,22 @@ public class ProductController : ControllerBase
                 return BadRequest("Không có file nào được chọn hoặc file rỗng.");
             }
 
+            if (file.Length > MaxFileSizeInBytes)
+            {
+                return BadRequest("Kích thước file vượt quá giới hạn 5MB.");
+            }
+
+            var extension = Path.GetExtension(file.FileName);
+            if (string.IsNullOrWhiteSpace(extension) || !AllowedExtensions.Contains(extension))
+            {
+                return BadRequest("Định dạng ảnh không hợp lệ. Chỉ chấp nhận .jpg, .jpeg, .png, .webp.");
+            }
+
+            if (string.IsNullOrWhiteSpace(file.ContentType) || !AllowedContentTypes.Contains(file.ContentType))
+            {
+                return BadRequest("Content-Type không hợp lệ cho file ảnh.");
+            }
+
             var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images");
 
             if (!Directory.Exists(uploadsFolder))
@@ -159,10 +188,10 @@ public class ProductController : ControllerBase
                 Directory.CreateDirectory(uploadsFolder);
             }
 
-            var uniqueFileName = Guid.NewGuid().ToString() + "_" + file.FileName;
+            var uniqueFileName = $"{Guid.NewGuid():N}{extension.ToLowerInvariant()}";
             var filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
-            using (var fileStream = new FileStream(filePath, FileMode.Create))
+            await using (var fileStream = new FileStream(filePath, FileMode.Create))
             {
                 await file.CopyToAsync(fileStream);
             }
@@ -187,6 +216,7 @@ public class ProductController : ControllerBase
 
     public class UploadImageRequest
     {
+        [Required(ErrorMessage = "File ảnh là bắt buộc")]
         public IFormFile? File { get; set; }
     }
 

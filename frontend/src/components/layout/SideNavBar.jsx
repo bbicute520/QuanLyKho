@@ -2,11 +2,11 @@ import { NavLink } from 'react-router-dom';
 
 export default function SideNavBar() {
   const menuItems = [
-    { path: '/dashboard', icon: 'dashboard', label: 'Overview' },
-    { path: '/products', icon: 'inventory_2', label: 'Products' },
-    { path: '/stock-in', icon: 'input', label: 'Stock In' },
-    { path: '/stock-out', icon: 'output', label: 'Stock Out' },
-    { path: '/suppliers', icon: 'local_shipping', label: 'Suppliers' },
+    { path: '/dashboard', icon: 'dashboard', label: 'Tổng quan' },
+    { path: '/products', icon: 'inventory_2', label: 'Sản phẩm' },
+    { path: '/stock-in', icon: 'input', label: 'Nhập kho' },
+    { path: '/stock-out', icon: 'output', label: 'Xuất kho' },
+    { path: '/suppliers', icon: 'local_shipping', label: 'Nhà cung cấp' },
   ];
 
   return (
@@ -18,7 +18,7 @@ export default function SideNavBar() {
           </div>
           <div>
             <h1 className="text-xl font-bold tracking-tighter text-slate-900">SyncStock</h1>
-            <p className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">WMS Control Center</p>
+            <p className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Trung tâm điều phối kho</p>
           </div>
         </div>
         
@@ -45,17 +45,17 @@ export default function SideNavBar() {
       <div className="absolute bottom-8 left-0 w-full px-6 space-y-1">
         <a href="#" className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 hover:bg-slate-200/50 transition-all duration-200">
           <span className="material-symbols-outlined">settings</span>
-          <span>Settings</span>
+          <span>Cài đặt</span>
         </a>
         <a href="#" className="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-900 hover:bg-slate-200/50 transition-all duration-200">
           <span className="material-symbols-outlined">help_outline</span>
-          <span>Support</span>
+          <span>Hỗ trợ</span>
         </a>
         <div className="mt-6 p-4 bg-white/50 rounded-2xl flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold">A</div>
           <div className="overflow-hidden">
-            <p className="text-xs font-bold text-slate-900 truncate">Admin User</p>
-            <p className="text-[10px] text-slate-500">Warehouse Lead</p>
+            <p className="text-xs font-bold text-slate-900 truncate">Quản trị viên</p>
+            <p className="text-[10px] text-slate-500">Trưởng kho</p>
           </div>
         </div>
       </div>

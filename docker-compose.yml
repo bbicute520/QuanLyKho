@@ -59,8 +59,11 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=SupplierDb;User ID=sa;Password=${DB_PASSWORD};TrustServerCertificate=True
     ports:
       - "5003:80"
+    depends_on:
+      - sqlserver
     networks:
       - qlk-net
 
@@ -72,8 +75,11 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=WarehouseDB;User ID=sa;Password=${DB_PASSWORD};TrustServerCertificate=True
     ports:
       - "5004:80"
+    depends_on:
+      - sqlserver
     networks:
       - qlk-net
 

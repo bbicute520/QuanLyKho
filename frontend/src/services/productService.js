@@ -1,13 +1,18 @@
 import axiosInstance from '../lib/axios';
 
 export const productService = {
-    // Lấy toàn bộ sản phẩm
-    getAll: async () => {
-        return await axiosInstance.get('/inventory/products');
+    // Lấy sản phẩm theo API phân trang: /api/inventory/product
+    getAll: async (params = {}) => {
+        return await axiosInstance.get('/inventory/product', { params });
     },
     
     // Thêm sản phẩm mới
     create: async (data) => {
-        return await axiosInstance.post('/inventory/products', data);
-    }
+        return await axiosInstance.post('/inventory/product', data);
+    },
+
+    // Xóa sản phẩm
+    delete: async (id) => {
+        return await axiosInstance.delete(`/inventory/product/${id}`);
+    },
 };

@@ -31,15 +31,15 @@ export default function TopNavBar() {
         <header className="fixed top-0 right-0 left-64 h-16 flex items-center justify-between px-8 z-50 bg-white/80 backdrop-blur-md shadow-sm border-b border-slate-100">
             <div className="flex items-center gap-8">
                 <nav className="hidden md:flex gap-6">
-                    <NavLink to="/dashboard" className="text-slate-600 hover:text-blue-700 text-sm font-bold transition-colors">Analytics</NavLink>
-                    <NavLink to="/reports" className="text-slate-600 hover:text-blue-700 text-sm font-bold transition-colors">Reports</NavLink>
+                    <NavLink to="/dashboard" className="text-slate-600 hover:text-blue-700 text-sm font-bold transition-colors">Phân tích</NavLink>
+                    <NavLink to="/reports" className="text-slate-600 hover:text-blue-700 text-sm font-bold transition-colors">Báo cáo</NavLink>
                     <NavLink
                         to="/stock-history"
                         className={({ isActive }) =>
                             `text-sm font-bold transition-colors ${isActive ? "text-blue-700 border-b-2 border-blue-700 pb-1" : "text-slate-600"}`
                         }
                     >
-                        Logs
+                        Nhật ký
                     </NavLink>
                 </nav>
             </div>

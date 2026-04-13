@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { RefreshCw, DownloadCloud, ShieldCheck } from 'lucide-react';
-import { stockService } from '../../services/stockService';
+import { RefreshCw, DownloadCloud } from 'lucide-react';
+import { reportService } from '../../services/reportService';
 import { toast } from 'sonner';
 
 export default function Reports() {
   // 1. Quản lý trạng thái bộ lọc
   const [dateRange, setDateRange] = useState({ from: '2026-04-01', to: '2026-04-30' });
   const [fileFormat, setFileFormat] = useState('xlsx');
+  const [downloadingId, setDownloadingId] = useState(null);
 
   const reportTypes = [
     { id: 'inventory', title: 'Báo cáo tồn kho tổng thể', desc: 'Chi tiết số lượng, giá trị vốn và vị trí.', icon: 'inventory_2' },
@@ -19,14 +20,22 @@ export default function Reports() {
   const handleRefresh = () => {
     setDateRange({ from: '2026-04-01', to: '2026-04-30' });
     setFileFormat('xlsx');
-    toast.success("Đã làm mới bộ lọc!");
+    toast.success('Đã làm mới bộ lọc');
   };
 
   // 2. Hàm xử lý tải báo cáo từ API
   const handleDownload = async (reportId) => {
     try {
-      toast.info("Hệ thống đang trích xuất dữ liệu...");
-      const blob = await stockService.downloadReport(reportId, { ...dateRange, format: fileFormat });
+      setDownloadingId(reportId);
+      toast.info('Hệ thống đang trích xuất dữ liệu');
+
+      const response = await reportService.exportExcel({
+        from: dateRange.from,
+        to: dateRange.to,
+        reportType: reportId,
+        format: fileFormat,
+      });
+      const blob = response.data;
       
       // Tạo link tải file tự động
       const url = window.URL.createObjectURL(new Blob([blob]));
@@ -35,9 +44,13 @@ export default function Reports() {
       link.setAttribute('download', `Báo_cáo_${reportId}_${Date.now()}.${fileFormat}`);
       document.body.appendChild(link);
       link.click();
-      toast.success("Tải báo cáo thành công!");
-    } catch (error) {
-      toast.error("Lỗi khi tạo báo cáo!");
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Tải báo cáo thành công');
+    } catch {
+      toast.error('Không thể tải báo cáo. Có thể Report API chưa sẵn sàng');
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -72,9 +85,9 @@ export default function Reports() {
             value={fileFormat} onChange={e => setFileFormat(e.target.value)}
             className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-slate-700 outline-none w-full appearance-none cursor-pointer"
           >
-            <option value="xlsx">Microsoft Excel (.xlsx)</option>
-            <option value="csv">CSV (Comma Separated)</option>
-            <option value="pdf">PDF Report (A4)</option>
+            <option value="xlsx">Tệp Excel (.xlsx)</option>
+            <option value="csv">Tệp CSV (phân tách dấu phẩy)</option>
+            <option value="pdf">Báo cáo PDF (A4)</option>
           </select>
         </div>
         {/* BỔ SUNG: Gắn sự kiện onClick vào nút */}
@@ -100,9 +113,10 @@ export default function Reports() {
             <p className="text-sm text-slate-500 font-medium mb-8 leading-relaxed">{report.desc}</p>
             <button 
               onClick={() => handleDownload(report.id)}
+              disabled={downloadingId === report.id}
               className="flex items-center gap-3 bg-blue-50 text-blue-700 px-6 py-3 rounded-xl font-black text-xs uppercase hover:bg-blue-600 hover:text-white transition-all shadow-sm"
             >
-              <DownloadCloud size={18} /> TẢI XUỐNG BẢN {fileFormat.toUpperCase()}
+              <DownloadCloud size={18} /> {downloadingId === report.id ? 'ĐANG TẢI...' : `TẢI XUỐNG BẢN ${fileFormat.toUpperCase()}`}
             </button>
           </motion.div>
         ))}

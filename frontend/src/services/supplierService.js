@@ -2,7 +2,7 @@ import axiosInstance from '../lib/axios';
 
 export const supplierService = {
     // Lấy danh sách
-    getAll: async () => await axiosInstance.get('/supplier'),
+    getAll: async (params = {}) => await axiosInstance.get('/supplier', { params }),
     
     // Thêm mới
     create: async (data) => await axiosInstance.post('/supplier', data),
@@ -11,5 +11,20 @@ export const supplierService = {
     getById: async (id) => await axiosInstance.get(`/supplier/${id}`),
 
     // Cập nhật
-    update: async (id, data) => await axiosInstance.put(`/supplier/${id}`, data)
+    update: async (id, data) => await axiosInstance.put(`/supplier/${id}`, data),
+
+    // Danh mục động từ dữ liệu nhà cung cấp hiện có
+    getCategories: async () => {
+        const response = await axiosInstance.get('/supplier');
+        const list = response.data || [];
+        const categories = Array.from(
+            new Set(
+                list
+                    .map((item) => item?.Address)
+                    .filter((value) => typeof value === 'string' && value.trim() !== '')
+            )
+        );
+
+        return categories;
+    }
 };
