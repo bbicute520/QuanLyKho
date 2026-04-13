@@ -10,20 +10,32 @@ export default function SupplierFilterForm({ onApply, onReset, onClose, initialF
     region: 'Tất cả'
   });
 
+  const formatCityLabel = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'ha noi') return 'Hà Nội';
+    if (normalized === 'da nang') return 'Đà Nẵng';
+    if (normalized === 'tp hcm') return 'TP HCM';
+    return value;
+  };
+
   // CẮM DÂY API: Lấy danh mục động từ Backend
   const { data: dbCategories = [], isLoading } = useQuery({
       queryKey: ['supplier-categories'],
       queryFn: async () => {
-          const response = await supplierService.getCategories();
-          return response.data || response;
+        return await supplierService.getCategories();
       }
   });
 
   // Áp dụng data API (nếu API sập hoặc chưa load xong thì hiển thị tạm cái cũ để không bể UI)
-  const allCategories = dbCategories.length > 0 ? dbCategories.map(c => c.name || c) : ['Điện tử', 'Âm thanh', 'Phụ kiện', 'Thời trang', 'Gia dụng', 'Vận tải'];
+    const allCategories = dbCategories.length > 0 ? dbCategories : ['Ha Noi', 'TP HCM', 'Da Nang'];
   
-  const statuses = ['Tất cả', 'Đang hợp tác', 'Đang gia hạn', 'Tạm dừng'];
-  const regions = ['Tất cả', 'Miền Bắc', 'Miền Trung', 'Miền Nam', 'Quốc tế'];
+    const statuses = ['Tất cả', 'Đang hợp tác', 'Tạm dừng'];
+    const regions = [
+      { value: 'Tất cả', label: 'Tất cả' },
+      { value: 'Ha Noi', label: 'Hà Nội' },
+      { value: 'TP HCM', label: 'TP HCM' },
+      { value: 'Da Nang', label: 'Đà Nẵng' },
+    ];
 
   const toggleCategory = (cat) => {
     setFilters(prev => ({
@@ -54,7 +66,7 @@ export default function SupplierFilterForm({ onApply, onReset, onClose, initialF
                 : 'bg-white border-slate-100 text-slate-500 hover:border-slate-200'
               }`}
             >
-              {cat}
+              {formatCityLabel(cat)}
             </button>
           ))}
         </div>
@@ -90,7 +102,7 @@ export default function SupplierFilterForm({ onApply, onReset, onClose, initialF
           onChange={(e) => setFilters({...filters, region: e.target.value})}
           className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-bold text-slate-900 focus:ring-1 focus:ring-[#003d9b]"
         >
-          {regions.map(r => <option key={r} value={r}>{r}</option>)}
+          {regions.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
         </select>
       </div>
 

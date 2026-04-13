@@ -8,7 +8,16 @@ export const reportService = {
 
     // Lịch sử nhập xuất (Truyền ?from=...&to=...)
     getTransactions: async (params) => {
-        return await axiosInstance.get('/report/transactions', { params });
+        try {
+            return await axiosInstance.get('/report/transactions', { params });
+        } catch (error) {
+            // Fallback khi Report Service chưa có route lịch sử giao dịch.
+            if (error?.response?.status === 404) {
+                const limit = Number(params?.limit) || 200;
+                return await axiosInstance.get('/inventory/history', { params: { limit } });
+            }
+            throw error;
+        }
     },
 
     // Tải file Excel

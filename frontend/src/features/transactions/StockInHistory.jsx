@@ -12,8 +12,28 @@ export default function StockInHistory() {
     const { data: history = [], isLoading } = useQuery({
         queryKey: ['stock-history'],
         queryFn: async () => {
-            const res = await stockService.getHistory();
-            return res.data;
+            try {
+                const res = await stockService.getHistory();
+                const list = Array.isArray(res?.data) ? res.data : [];
+
+                return list.map((item, index) => {
+                    const rawType = String(item.type || item.transactionType || '').toUpperCase();
+                    const txType = rawType.includes('IMPORT') || rawType.includes('IN') || rawType.includes('NHAP') ? 'IN' : 'OUT';
+
+                    return {
+                        id: item.id || index,
+                        ticketCode: item.ticketCode || `TX-${item.id || index}`,
+                        partner: item.partner || item.note || 'Hệ thống',
+                        itemsCount: item.itemsCount || 1,
+                        totalValue: item.totalValue || 0,
+                        status: item.status || 'Hoàn tất',
+                        date: item.date || item.transactionDate || '',
+                        type: txType
+                    };
+                });
+            } catch {
+                return [];
+            }
         }
     });
 

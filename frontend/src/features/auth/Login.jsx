@@ -82,21 +82,21 @@ export default function Login() {
               <span className="text-white text-2xl font-black tracking-tighter uppercase">SyncStock</span>
             </div>
             <h1 className="text-white text-5xl font-black leading-tight tracking-tight mb-6 uppercase">
-              Precision in every <br /> movement.
+              Chuẩn xác trong từng <br /> luồng hàng.
             </h1>
             <p className="text-white/80 text-lg max-w-md font-medium">
-              The editorial control center for modern warehouse management. Seamlessly track, analyze, and optimize your logistical flow.
+              Trung tâm điều phối cho quản trị kho hiện đại. Theo dõi, phân tích và tối ưu toàn bộ luồng vận hành.
             </p>
           </div>
 
           <div className="relative z-10 flex gap-8">
             <div>
               <div className="text-white text-3xl font-black uppercase">99.9%</div>
-              <div className="text-white/60 text-xs uppercase tracking-widest font-bold mt-1">Uptime Reliable</div>
+              <div className="text-white/60 text-xs uppercase tracking-widest font-bold mt-1">Độ ổn định hệ thống</div>
             </div>
             <div>
               <div className="text-white text-3xl font-black uppercase">2.4M</div>
-              <div className="text-white/60 text-xs uppercase tracking-widest font-bold mt-1">Items Processed</div>
+              <div className="text-white/60 text-xs uppercase tracking-widest font-bold mt-1">Mặt hàng đã xử lý</div>
             </div>
           </div>
 
@@ -114,8 +114,8 @@ export default function Login() {
             </div>
 
             <div className="mb-10">
-              <h2 className="text-slate-900 text-3xl font-black tracking-tight mb-2 uppercase">Welcome Back</h2>
-              <p className="text-slate-500 text-sm font-medium">Enter your credentials to access the WMS Control Center.</p>
+              <h2 className="text-slate-900 text-3xl font-black tracking-tight mb-2 uppercase">Chào mừng trở lại</h2>
+              <p className="text-slate-500 text-sm font-medium">Nhập thông tin đăng nhập để truy cập trung tâm điều phối kho.</p>
             </div>
 
             <form className="space-y-6" onSubmit={handleLogin}>
@@ -185,7 +185,7 @@ export default function Login() {
             </form>
 
             <div className="mt-12 pt-8 border-t border-slate-100 text-center">
-              <p className="text-slate-300 text-[10px] uppercase font-black tracking-[0.2em]">Secure Enterprise Infrastructure</p>
+              <p className="text-slate-300 text-[10px] uppercase font-black tracking-[0.2em]">Hạ tầng doanh nghiệp an toàn</p>
             </div>
           </div>
         </div>

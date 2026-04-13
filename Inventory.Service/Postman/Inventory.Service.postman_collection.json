@@ -1,0 +1,174 @@
+{
+  "info": {
+    "_postman_id": "e1f3c4e3-3a95-4e78-9c0b-5f5a2d8ebf77",
+    "name": "Inventory.Service API",
+    "description": "Collection cho TV2: CRUD Product, upload ảnh, nhập/xuất kho, xem tồn kho.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000"
+    },
+    {
+      "key": "productId",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "Product - Get List (Filter + Paging)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/inventory/product?searchName=&category=&pageNumber=1&pageSize=10",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "inventory",
+            "product"
+          ],
+          "query": [
+            { "key": "searchName", "value": "" },
+            { "key": "category", "value": "" },
+            { "key": "pageNumber", "value": "1" },
+            { "key": "pageSize", "value": "10" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Product - Get By Id",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/inventory/product/{{productId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "inventory", "product", "{{productId}}"]
+        }
+      }
+    },
+    {
+      "name": "Product - Create",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Máy in HP M404\",\n  \"category\": \"Điện tử\",\n  \"unit\": \"Cái\",\n  \"stock\": 30,\n  \"minStock\": 5,\n  \"imageUrl\": null\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/inventory/product",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "inventory", "product"]
+        }
+      }
+    },
+    {
+      "name": "Product - Update",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"id\": {{productId}},\n  \"name\": \"Máy in HP M404 - Update\",\n  \"category\": \"Điện tử\",\n  \"unit\": \"Cái\",\n  \"stock\": 25,\n  \"minStock\": 5,\n  \"imageUrl\": \"/images/sample.png\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/inventory/product/{{productId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "inventory", "product", "{{productId}}"]
+        }
+      }
+    },
+    {
+      "name": "Product - Delete",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/inventory/product/{{productId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "inventory", "product", "{{productId}}"]
+        }
+      }
+    },
+    {
+      "name": "Product - Upload Image",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": ""
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/inventory/product/upload",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "inventory", "product", "upload"]
+        }
+      }
+    },
+    {
+      "name": "Inventory - Get Stock",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/inventory/stock",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "inventory", "stock"]
+        }
+      }
+    },
+    {
+      "name": "Inventory - Import",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"note\": \"Nhập hàng định kỳ tháng 4\",\n  \"supplierId\": 1,\n  \"items\": [\n    {\n      \"productId\": 1,\n      \"quantity\": 10\n    },\n    {\n      \"productId\": 2,\n      \"quantity\": 5\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/inventory/import",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "inventory", "import"]
+        }
+      }
+    },
+    {
+      "name": "Inventory - Export",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reason\": \"Xuất kho cho đơn hàng A102\",\n  \"items\": [\n    {\n      \"productId\": 1,\n      \"quantity\": 3\n    },\n    {\n      \"productId\": 2,\n      \"quantity\": 1\n    }\n  ]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/inventory/export",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "inventory", "export"]
+        }
+      }
+    }
+  ]
+}

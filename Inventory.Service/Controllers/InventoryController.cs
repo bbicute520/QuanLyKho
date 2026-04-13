@@ -36,6 +36,38 @@ namespace Inventory.Service.Controllers
             return Ok(stockList);
         }
 
+        // GET: api/inventory/history?limit=200
+        [HttpGet("history")]
+        public async Task<IActionResult> GetHistory([FromQuery] int limit = 200)
+        {
+            var safeLimit = Math.Clamp(limit, 1, 500);
+
+            var history = await _context.StockTransactions
+                .AsNoTracking()
+                .OrderByDescending(t => t.TransactionDate)
+                .Take(safeLimit)
+                .Join(
+                    _context.Products.AsNoTracking(),
+                    t => t.ProductId,
+                    p => p.Id,
+                    (t, p) => new
+                    {
+                        id = t.Id,
+                        productId = t.ProductId,
+                        productName = p.Name,
+                        quantity = t.Quantity,
+                        type = t.TransactionType,
+                        transactionType = t.TransactionType,
+                        date = t.TransactionDate,
+                        transactionDate = t.TransactionDate,
+                        note = t.Note
+                    }
+                )
+                .ToListAsync();
+
+            return Ok(history);
+        }
+
         // POST: api/inventory/import
         [HttpPost("import")]
         public async Task<IActionResult> ImportStock([FromBody] ImportRequestDto request)

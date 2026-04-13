@@ -3,25 +3,26 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import PageWrapper from '../../components/layout/PageWrapper';
 import { 
-  Activity, AlertTriangle, Truck, BarChart3, 
+  Activity, AlertTriangle, Truck, BarChart3,
   ArrowDownLeft, ArrowUpRight, Loader2
 } from 'lucide-react';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, 
-  Tooltip, Legend, ResponsiveContainer 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { stockService } from '../../services/stockService';
 
 export default function Dashboard() {
   const navigate = useNavigate();
 
-  // Dữ liệu mặc định khi không kết nối được API
+  // Dữ liệu mặc định khi chưa có report API
   const zeroData = {
-    totalValue: 0,
+    totalStock: 0,
     alertsCount: 0,
     shippingCount: 0,
     monthlyIn: 0,
     monthlyOut: 0,
+    inventory: [],
     chartData: [
       { day: 'Th 2', in: 0, out: 0 }, { day: 'Th 3', in: 0, out: 0 },
       { day: 'Th 4', in: 0, out: 0 }, { day: 'Th 5', in: 0, out: 0 },
@@ -33,65 +34,104 @@ export default function Dashboard() {
 
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
-    retry: false, // Tắt tự động thử lại để hiện số 0 ngay khi lỗi
+    retry: false,
     queryFn: async () => {
-        try {
-            // Thử gọi API
-            const [stockRes, historyRes] = await Promise.all([
-                stockService.getInventory(),
-                stockService.getHistory()
-            ]);
+      const stockRes = await stockService.getInventory();
+      const inventory = Array.isArray(stockRes?.data) ? stockRes.data : [];
 
-            const inventory = stockRes.data || [];
-            const history = historyRes.data || [];
+      let history = [];
+      try {
+        const historyRes = await stockService.getHistory();
+        history = Array.isArray(historyRes?.data) ? historyRes.data : [];
+      } catch {
+        history = [];
+      }
 
-            // Tính toán logic từ dữ liệu thật
-            const lowStockItems = inventory.filter(item => item.isLow).length;
-            
-            // Xử lý biểu đồ 7 ngày
-            const daysLabel = ['CN', 'Th 2', 'Th 3', 'Th 4', 'Th 5', 'Th 6', 'Th 7'];
-            const chartData = Array.from({ length: 7 }, (_, i) => {
-                const d = new Date();
-                d.setDate(d.getDate() - (6 - i));
-                return {
-                    dateStr: d.toISOString().split('T')[0],
-                    day: daysLabel[d.getDay()],
-                    in: 0,
-                    out: 0
-                };
-            });
+      const lowStockItems = inventory.filter((item) => item.isLowStock).length;
+      const totalStock = inventory.reduce((sum, item) => sum + Number(item.stock || 0), 0);
 
-            history.forEach(trans => {
-                const slot = chartData.find(d => d.dateStr === trans.date);
-                if (slot) {
-                    if (trans.type === 'Nhập') slot.in += trans.quantity;
-                    if (trans.type === 'Xuất') slot.out += trans.quantity;
-                }
-            });
+      const now = new Date();
+      const monthlyIn = history
+        .filter((tx) => {
+          const d = new Date(tx.date || tx.transactionDate || Date.now());
+          const txType = String(tx.type || tx.transactionType || '').toUpperCase();
+          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() &&
+            (txType.includes('IMPORT') || txType.includes('IN') || txType.includes('NHAP'));
+        })
+        .reduce((sum, tx) => sum + Number(tx.quantity || 0), 0);
 
-            return {
-                totalValue: 0, // Hiện tại chưa có giá tiền từ API
-                alertsCount: lowStockItems,
-                shippingCount: 0,
-                monthlyIn: 0,
-                monthlyOut: 0,
-                chartData,
-                recentActivities: history.slice(0, 5).map(item => ({
-                    id: item.id || Math.random(),
-                    type: item.type === 'Nhập' ? 'in' : 'out',
-                    title: `${item.type === 'Nhập' ? 'Nhập kho' : 'Xuất kho'} ${item.productName}`,
-                    user: 'Hệ thống',
-                    code: `SL: ${item.quantity}`
-                }))
-            };
-        } catch (error) {
-            console.error("Kết nối API thất bại, hiển thị số liệu 0:", error);
-            return zeroData; // Trả về số 0 nếu API sập
+      const monthlyOut = history
+        .filter((tx) => {
+          const d = new Date(tx.date || tx.transactionDate || Date.now());
+          const txType = String(tx.type || tx.transactionType || '').toUpperCase();
+          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() &&
+            (txType.includes('EXPORT') || txType.includes('OUT') || txType.includes('XUAT'));
+        })
+        .reduce((sum, tx) => sum + Number(tx.quantity || 0), 0);
+
+      const shippingCount = history.filter((tx) => {
+        const txType = String(tx.type || tx.transactionType || '').toUpperCase();
+        return txType.includes('EXPORT') || txType.includes('OUT') || txType.includes('XUAT');
+      }).length;
+
+      const daysLabel = ['CN', 'Th 2', 'Th 3', 'Th 4', 'Th 5', 'Th 6', 'Th 7'];
+      const chartData = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        return {
+          dateStr: d.toISOString().split('T')[0],
+          day: daysLabel[d.getDay()],
+          in: 0,
+          out: 0
+        };
+      });
+
+      history.forEach((trans) => {
+        const rawDate = trans.date || trans.transactionDate;
+        if (!rawDate) {
+          return;
         }
+
+        const dateStr = new Date(rawDate).toISOString().split('T')[0];
+        const slot = chartData.find((d) => d.dateStr === dateStr);
+        if (!slot) {
+          return;
+        }
+
+        const txType = String(trans.type || trans.transactionType || '').toUpperCase();
+        const quantity = Number(trans.quantity || 0);
+
+        if (txType.includes('IMPORT') || txType.includes('IN') || txType.includes('NHAP')) {
+          slot.in += quantity;
+        } else if (txType.includes('EXPORT') || txType.includes('OUT') || txType.includes('XUAT')) {
+          slot.out += quantity;
+        }
+      });
+
+      return {
+        ...zeroData,
+        inventory,
+        totalStock,
+        alertsCount: lowStockItems,
+        shippingCount,
+        monthlyIn,
+        monthlyOut,
+        chartData,
+        recentActivities: history.slice(0, 5).map((item, index) => {
+          const txType = String(item.type || item.transactionType || '').toUpperCase();
+          const isImport = txType.includes('IMPORT') || txType.includes('IN') || txType.includes('NHAP');
+          return {
+            id: item.id || `${txType}-${index}`,
+            type: isImport ? 'in' : 'out',
+            title: `${isImport ? 'Nhập kho' : 'Xuất kho'} ${item.productName || item.name || ''}`.trim(),
+            user: 'Hệ thống',
+            code: `SL: ${item.quantity || 0}`
+          };
+        })
+      };
     }
   });
 
-  // Chỉ hiện xoay nếu đang trong lần tải đầu tiên (nhưng catch sẽ xử lý nhanh)
   if (isLoading) return (
     <div className="h-screen flex items-center justify-center">
       <Loader2 className="animate-spin text-blue-700" size={48} />
@@ -108,18 +148,18 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-10">
         <div className="col-span-1 md:col-span-2 bg-[#003d9b] text-white p-10 rounded-xl shadow-xl relative overflow-hidden group">
           <div className="relative z-10">
-            <p className="text-xs md:text-sm font-bold uppercase tracking-[0.2em] opacity-70 mb-4">Giá trị kho hiện tại</p>
+            <p className="text-xs md:text-sm font-bold uppercase tracking-[0.2em] opacity-70 mb-4">Tổng tồn kho hiện tại</p>
             <h3 className="text-4xl md:text-5xl font-black tracking-tighter mb-8">
-              {stats?.totalValue?.toLocaleString() || "0"} <span className="text-lg md:text-xl opacity-60 font-medium uppercase">VND</span>
+              {stats?.totalStock?.toLocaleString() || "0"} <span className="text-lg md:text-xl opacity-60 font-medium uppercase">Sản phẩm</span>
             </h3>
             <div className="flex flex-wrap gap-4 md:gap-6">
               <div className="bg-white/10 backdrop-blur-md px-6 py-3 rounded-xl border border-white/10">
                 <p className="text-xs md:text-sm opacity-70 uppercase font-bold mb-1">Nhập tháng này</p>
-                <p className="text-xl md:text-2xl font-black">+{stats?.monthlyIn}%</p>
+                <p className="text-xl md:text-2xl font-black">+{stats?.monthlyIn}</p>
               </div>
               <div className="bg-white/10 backdrop-blur-md px-6 py-3 rounded-xl border border-white/10">
                 <p className="text-xs md:text-sm opacity-70 uppercase font-bold mb-1">Xuất tháng này</p>
-                <p className="text-xl md:text-2xl font-black">-{stats?.monthlyOut}%</p>
+                <p className="text-xl md:text-2xl font-black">-{stats?.monthlyOut}</p>
               </div>
             </div>
           </div>
@@ -142,10 +182,10 @@ export default function Dashboard() {
             <div className="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center text-blue-700 mb-6">
               <Truck size={28} />
             </div>
-            <p className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-widest mb-2">Vận chuyển</p>
+            <p className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-widest mb-2">Xuất kho</p>
             <h4 className="text-4xl md:text-5xl font-black text-[#091c35]">{stats?.shippingCount || 0}</h4>
           </div>
-          <p className="text-sm md:text-base text-blue-800 font-black uppercase">Lô hàng đang tới</p>
+          <p className="text-sm md:text-base text-blue-800 font-black uppercase">Tổng lượt xuất</p>
         </div>
       </div>
 
@@ -200,6 +240,44 @@ export default function Dashboard() {
               Xem tất cả nhật ký
             </button>
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+        <h3 className="text-base md:text-lg font-black uppercase tracking-widest text-slate-500 mb-6">
+          Tồn kho hiện tại
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[640px]">
+            <thead>
+              <tr className="border-b border-slate-200">
+                <th className="py-3 text-[11px] font-black text-slate-500 uppercase tracking-widest">Sản phẩm</th>
+                <th className="py-3 text-[11px] font-black text-slate-500 uppercase tracking-widest">Danh mục</th>
+                <th className="py-3 text-[11px] font-black text-slate-500 uppercase tracking-widest text-right">Tồn</th>
+                <th className="py-3 text-[11px] font-black text-slate-500 uppercase tracking-widest text-right">Mức tối thiểu</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats?.inventory?.length > 0 ? (
+                stats.inventory.slice(0, 10).map((item) => (
+                  <tr key={item.id} className={`border-b border-slate-100 ${item.isLowStock ? 'bg-red-50/70' : ''}`}>
+                    <td className="py-3 font-bold text-slate-800">{item.name}</td>
+                    <td className="py-3 text-slate-600">{item.category}</td>
+                    <td className={`py-3 text-right font-black ${item.isLowStock ? 'text-red-700' : 'text-slate-800'}`}>
+                      {item.stock}
+                    </td>
+                    <td className="py-3 text-right text-slate-600">{item.minStock}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="4" className="py-8 text-center text-slate-400 font-bold uppercase text-xs tracking-widest">
+                    Chưa có dữ liệu tồn kho
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </PageWrapper>

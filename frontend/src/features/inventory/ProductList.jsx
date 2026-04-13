@@ -24,8 +24,8 @@ export default function ProductList() {
     const { data: products = [], isLoading, isError, refetch } = useQuery({
         queryKey: ['products'],
         queryFn: async () => {
-            const response = await productService.getAll();
-            return response.data || response; // Tự động bóc tách array data
+            const response = await productService.getAll({ pageNumber: 1, pageSize: 100 });
+            return response?.data?.data || [];
         },
         onError: () => toast.error("Không thể kết nối máy chủ!")
     });
@@ -47,15 +47,15 @@ export default function ProductList() {
         return products.filter(product => {
             const matchesSearch = 
                 product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                product.sku?.toLowerCase().includes(searchTerm.toLowerCase());
+                String(product.id || '').includes(searchTerm.toLowerCase());
 
             const matchesCategory = 
                 activeFilters.category === 'Tất cả' || product.category === activeFilters.category;
 
             let matchesStatus = true;
             if (activeFilters.status === 'Hết hàng') matchesStatus = product.stock === 0;
-            else if (activeFilters.status === 'Sắp hết') matchesStatus = product.stock > 0 && product.stock <= 30;
-            else if (activeFilters.status === 'Còn hàng') matchesStatus = product.stock > 30;
+            else if (activeFilters.status === 'Sắp hết') matchesStatus = product.stock > 0 && product.stock <= product.minStock;
+            else if (activeFilters.status === 'Còn hàng') matchesStatus = product.stock > product.minStock;
 
             const matchesMinStock = 
                 activeFilters.minStock === '' || product.stock >= parseInt(activeFilters.minStock);
@@ -125,7 +125,7 @@ export default function ProductList() {
                             <tr>
                                 <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Sản phẩm</th>
                                 <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Tồn kho</th>
-                                <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Giá nhập</th>
+                                <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Mức tối thiểu</th>
                                 <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Trạng thái</th>
                                 <th className="px-8 py-5 text-right"></th>
                             </tr>
@@ -161,18 +161,18 @@ export default function ProductList() {
                                             </div>
                                             <div>
                                                 <p className="font-black text-slate-900 text-base uppercase">{product.name}</p>
-                                                <p className="text-[10px] text-[#003d9b] font-black font-mono">SKU: {product.sku}</p>
+                                                <p className="text-[10px] text-[#003d9b] font-black font-mono">MA: SP-{product.id}</p>
                                             </div>
                                         </div>
                                     </td>
                                     <td className="px-8 py-6 text-center text-lg font-black text-slate-700">{product.stock}</td>
-                                    <td className="px-8 py-6 text-right font-mono font-bold text-slate-600">{product.price?.toLocaleString()} đ</td>
+                                    <td className="px-8 py-6 text-right font-mono font-bold text-slate-600">{product.minStock}</td>
                                     <td className="px-8 py-6 text-center">
                                         <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase ${
-                                            product.stock > 30 ? 'bg-emerald-50 text-emerald-600' : 
+                                            product.stock > product.minStock ? 'bg-emerald-50 text-emerald-600' : 
                                             product.stock > 0 ? 'bg-orange-50 text-orange-600' : 'bg-red-50 text-red-600'
                                         }`}>
-                                            {product.stock > 30 ? 'Còn hàng' : product.stock > 0 ? 'Sắp hết' : 'Hết hàng'}
+                                            {product.stock > product.minStock ? 'Còn hàng' : product.stock > 0 ? 'Sắp hết' : 'Hết hàng'}
                                         </span>
                                     </td>
                                     <td className="px-8 py-6 text-right">

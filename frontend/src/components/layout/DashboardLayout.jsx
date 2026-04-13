@@ -31,11 +31,11 @@ export default function DashboardLayout() {
     }, []);
 
     const menuItems = [
-        { name: "Overview", path: "/dashboard", icon: "dashboard" },
-        { name: "Products", path: "/products", icon: "inventory_2" },
-        { name: "Stock In", path: "/stock-in", icon: "input" },
-        { name: "Stock Out", path: "/stock-out", icon: "output" },
-        { name: "Suppliers", path: "/suppliers", icon: "local_shipping" },
+        { name: "Tổng quan", path: "/dashboard", icon: "dashboard" },
+        { name: "Sản phẩm", path: "/products", icon: "inventory_2" },
+        { name: "Nhập kho", path: "/stock-in", icon: "input" },
+        { name: "Xuất kho", path: "/stock-out", icon: "output" },
+        { name: "Nhà cung cấp", path: "/suppliers", icon: "local_shipping" },
     ];
 
     return (
@@ -49,7 +49,7 @@ export default function DashboardLayout() {
                         </div>
                         <div>
                             <h1 className="text-xl font-bold tracking-tighter text-slate-900">SyncStock</h1>
-                            <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">WMS Control Center</p>
+                            <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Trung tâm điều phối kho</p>
                         </div>
                     </div>
 
@@ -77,9 +77,9 @@ export default function DashboardLayout() {
                 {/* TOPBAR */}
                 <header className="fixed top-0 right-0 left-64 h-16 flex items-center justify-between px-8 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200/20">
                     <div className="flex items-center gap-8">
-                        <NavLink to="/dashboard" className={({ isActive }) => `text-sm font-bold cursor-pointer transition-colors ${isActive ? "text-blue-700 border-b-2 border-blue-700 pb-1" : "text-slate-600 hover:text-blue-600"}`}>Analytics</NavLink>
-                        <NavLink to="/reports" className={({ isActive }) => `text-sm font-bold cursor-pointer transition-colors ${isActive ? "text-blue-700 border-b-2 border-blue-700 pb-1" : "text-slate-600 hover:text-blue-600"}`}>Reports</NavLink>
-                        <NavLink to="/stock-history" className={({ isActive }) => `text-sm font-bold cursor-pointer transition-colors ${isActive ? "text-blue-700 border-b-2 border-blue-700 pb-1" : "text-slate-600 hover:text-blue-600"}`}>Logs</NavLink>
+                        <NavLink to="/dashboard" className={({ isActive }) => `text-sm font-bold cursor-pointer transition-colors ${isActive ? "text-blue-700 border-b-2 border-blue-700 pb-1" : "text-slate-600 hover:text-blue-600"}`}>Phân tích</NavLink>
+                        <NavLink to="/reports" className={({ isActive }) => `text-sm font-bold cursor-pointer transition-colors ${isActive ? "text-blue-700 border-b-2 border-blue-700 pb-1" : "text-slate-600 hover:text-blue-600"}`}>Báo cáo</NavLink>
+                        <NavLink to="/stock-history" className={({ isActive }) => `text-sm font-bold cursor-pointer transition-colors ${isActive ? "text-blue-700 border-b-2 border-blue-700 pb-1" : "text-slate-600 hover:text-blue-600"}`}>Nhật ký</NavLink>
                     </div>
 
                     <div className="flex items-center gap-4" ref={profileRef}>

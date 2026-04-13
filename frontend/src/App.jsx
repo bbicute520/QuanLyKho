@@ -23,7 +23,7 @@ export default function App() {
                 <Route path="/login" element={<Login />} />
 
                 {/* CỤM TRANG NỘI BỘ: Phải đi qua ProtectedRoute mới được vào */}
-                {/* <Route element={<ProtectedRoute />}> */}
+                <Route element={<ProtectedRoute />}>
                     <Route path="/" element={<DashboardLayout />}>
                         <Route
                             index
@@ -38,12 +38,12 @@ export default function App() {
                         <Route path="reports" element={<Reports />} />
                         <Route path="profile" element={<Profile />} />
                     </Route>
-                {/* </Route> */}
+                </Route>
 
-                {/* REDIRECT: Nếu nhập sai, tự động đẩy về dashboard (sẽ bị ProtectedRoute chặn nếu chưa login) */}
+                {/* REDIRECT: Nếu nhập sai URL thì về login */}
                 <Route
                     path="*"
-                    element={<Navigate to="/dashboard" replace />}
+                    element={<Navigate to="/login" replace />}
                 />
             </Routes>
         </BrowserRouter>

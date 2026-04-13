@@ -24,7 +24,7 @@ namespace Inventory.Service.Models
         [Range(0, 10000, ErrorMessage = "Mức tồn kho tối thiểu không hợp lệ")]
         public int MinStock { get; set; } = 10;
 
-        // Bổ sung trường ImageUrl (dấu ? biểu thị cho phép null nếu sản phẩm chưa có ảnh)
+        [MaxLength(500, ErrorMessage = "Đường dẫn ảnh không được vượt quá 500 ký tự")]
         public string? ImageUrl { get; set; }
     }
 }
