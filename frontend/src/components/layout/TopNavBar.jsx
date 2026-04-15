@@ -32,14 +32,13 @@ export default function TopNavBar() {
             <div className="flex items-center gap-8">
                 <nav className="hidden md:flex gap-6">
                     <NavLink to="/dashboard" className="text-slate-600 hover:text-blue-700 text-sm font-bold transition-colors">Phân tích</NavLink>
-                    <NavLink to="/reports" className="text-slate-600 hover:text-blue-700 text-sm font-bold transition-colors">Báo cáo</NavLink>
                     <NavLink
-                        to="/stock-history"
+                        to="/reports"
                         className={({ isActive }) =>
                             `text-sm font-bold transition-colors ${isActive ? "text-blue-700 border-b-2 border-blue-700 pb-1" : "text-slate-600"}`
                         }
                     >
-                        Nhật ký
+                        Báo cáo & Nhật ký
                     </NavLink>
                 </nav>
             </div>

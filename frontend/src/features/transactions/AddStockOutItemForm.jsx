@@ -109,7 +109,12 @@ export default function AddStockOutItemForm({ products = [], isLoading, onAdd, o
 
             <div className="flex items-center justify-end gap-6 pt-6 mt-2">
                 <button onClick={onClose} className="text-base font-black uppercase tracking-widest text-slate-500 hover:text-slate-900">Hủy</button>
-                <button onClick={handleSubmit} disabled={!selectedProduct} className="bg-[#003d9b] text-white px-8 py-4 rounded-xl text-base font-black uppercase tracking-widest hover:bg-blue-800 transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+                <button
+                    onClick={handleSubmit}
+                    disabled={!selectedProduct}
+                    className="inline-flex items-center gap-2 bg-gradient-to-r from-[#003d9b] to-[#0f5bd8] text-white px-8 py-4 rounded-xl text-sm font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-lg shadow-blue-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <span className="material-symbols-outlined text-base">library_add</span>
                     Đưa vào phiếu xuất
                 </button>
             </div>

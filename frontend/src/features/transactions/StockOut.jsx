@@ -207,7 +207,7 @@ export default function StockOut() {
                             </h3>
                             <button
                                 onClick={() => setIsAddModalOpen(true)}
-                                className="flex items-center gap-2 text-sm font-bold text-primary hover:bg-primary-fixed px-4 py-2 rounded-lg transition-colors"
+                                className="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-white bg-[#003d9b] hover:bg-blue-700 px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-900/20"
                             >
                                 <span className="material-symbols-outlined text-base">add_circle</span> Thêm sản phẩm
                             </button>
