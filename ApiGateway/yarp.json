@@ -24,6 +24,12 @@
         "Match": {
           "Path": "/api/report/{**catch-all}"
         }
+      },
+      "ai-chat-route": {
+        "ClusterId": "ai-cluster",
+        "Match": {
+          "Path": "/api/chat/{**catch-all}"
+        }
       }
     },
     "Clusters": {
@@ -52,6 +58,13 @@
         "Destinations": {
           "report-service": {
             "Address": "http://report-service"
+          }
+        }
+      },
+      "ai-cluster": {
+        "Destinations": {
+          "ai-service": {
+            "Address": "http://ai-service"
           }
         }
       }

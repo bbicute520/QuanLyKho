@@ -1,19 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import PageWrapper from '../../components/layout/PageWrapper';
 import { 
-  Activity, AlertTriangle, Truck, BarChart3,
-  ArrowDownLeft, ArrowUpRight, Loader2
+  Activity, BarChart3,
+  ArrowDownLeft, ArrowUpRight, Loader2, Bot, Send
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { stockService } from '../../services/stockService';
+import Modal from '../../components/ui/Modal';
+import { aiService } from '../../services/aiService';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [isAsking, setIsAsking] = useState(false);
+  const [chatMessages, setChatMessages] = useState([
+    {
+      role: 'assistant',
+      text: 'Xin chào, tôi là AI bot. Bạn có thể hỏi nhanh về tồn kho, nhập xuất hoặc cảnh báo hàng sắp hết.'
+    }
+  ]);
 
   // Dữ liệu mặc định khi chưa có report API
   const zeroData = {
@@ -132,6 +143,31 @@ export default function Dashboard() {
     }
   });
 
+  const handleAskAi = async (event) => {
+    event.preventDefault();
+    const question = chatInput.trim();
+    if (!question) {
+      return;
+    }
+
+    setChatMessages((prev) => [...prev, { role: 'user', text: question }]);
+    setChatInput('');
+    setIsAsking(true);
+
+    try {
+      const response = await aiService.ask(question);
+      const answer = response?.data?.answer || 'AI chưa trả về nội dung phù hợp.';
+      setChatMessages((prev) => [...prev, { role: 'assistant', text: answer }]);
+    } catch {
+      setChatMessages((prev) => [
+        ...prev,
+        { role: 'assistant', text: 'Hiện chưa kết nối được AI service. Vui lòng thử lại sau.' }
+      ]);
+    } finally {
+      setIsAsking(false);
+    }
+  };
+
   if (isLoading) return (
     <div className="h-screen flex items-center justify-center">
       <Loader2 className="animate-spin text-blue-700" size={48} />
@@ -141,12 +177,20 @@ export default function Dashboard() {
   return (
     <PageWrapper className="max-w-7xl mx-auto">
       <div className="mb-10">
-        <h2 className="text-2xl md:text-3xl font-black tracking-tight text-[#091c35] mb-3 uppercase">Trung tâm điều phối</h2>
+        <div className="flex items-center justify-between gap-4 flex-wrap mb-3">
+          <h2 className="text-2xl md:text-3xl font-black tracking-tight text-[#091c35] uppercase">Trung tâm điều phối</h2>
+          <button
+            onClick={() => setIsAiModalOpen(true)}
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#003d9b] text-white text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-colors"
+          >
+            <Bot size={16} /> AI Bot Chat
+          </button>
+        </div>
         <p className="text-[#434654] text-sm md:text-base font-medium">Hệ thống đang vận hành ổn định trên toàn chi nhánh.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-10">
-        <div className="col-span-1 md:col-span-2 bg-[#003d9b] text-white p-10 rounded-xl shadow-xl relative overflow-hidden group">
+      <div className="mb-10">
+        <div className="bg-[#003d9b] text-white p-10 rounded-xl shadow-xl relative overflow-hidden group">
           <div className="relative z-10">
             <p className="text-xs md:text-sm font-bold uppercase tracking-[0.2em] opacity-70 mb-4">Tổng tồn kho hiện tại</p>
             <h3 className="text-4xl md:text-5xl font-black tracking-tighter mb-8">
@@ -164,28 +208,6 @@ export default function Dashboard() {
             </div>
           </div>
           <Activity className="absolute -right-12 -bottom-12 text-[280px] w-96 h-96 opacity-10 rotate-12" />
-        </div>
-
-        <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="w-14 h-14 bg-orange-100 rounded-xl flex items-center justify-center text-orange-700 mb-6">
-              <AlertTriangle size={28} />
-            </div>
-            <p className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-widest mb-2">Cảnh báo tồn</p>
-            <h4 className="text-4xl md:text-5xl font-black text-[#091c35]">{stats?.alertsCount || 0}</h4>
-          </div>
-          <p className="text-sm md:text-base text-orange-800 font-black uppercase">Sắp hết hàng</p>
-        </div>
-
-        <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center text-blue-700 mb-6">
-              <Truck size={28} />
-            </div>
-            <p className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-widest mb-2">Xuất kho</p>
-            <h4 className="text-4xl md:text-5xl font-black text-[#091c35]">{stats?.shippingCount || 0}</h4>
-          </div>
-          <p className="text-sm md:text-base text-blue-800 font-black uppercase">Tổng lượt xuất</p>
         </div>
       </div>
 
@@ -234,10 +256,10 @@ export default function Dashboard() {
               )}
             </div>
             <button 
-              onClick={() => navigate('/stock-history')}
+              onClick={() => navigate('/reports')}
               className="w-full mt-10 py-4 text-sm md:text-base font-black text-[#003d9b] bg-[#dae2ff] hover:bg-[#c4d2ff] rounded-xl transition-all uppercase tracking-widest"
             >
-              Xem tất cả nhật ký
+              Xem báo cáo & nhật ký
             </button>
           </div>
         </div>
@@ -280,6 +302,41 @@ export default function Dashboard() {
           </table>
         </div>
       </div>
+
+      <Modal isOpen={isAiModalOpen} onClose={() => setIsAiModalOpen(false)} title="AI Bot Chat">
+        <div className="space-y-4">
+          <div className="h-72 overflow-y-auto bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+            {chatMessages.map((message, index) => (
+              <div
+                key={`${message.role}-${index}`}
+                className={`max-w-[90%] rounded-xl px-4 py-3 text-sm font-medium ${
+                  message.role === 'user'
+                    ? 'ml-auto bg-[#003d9b] text-white'
+                    : 'bg-white border border-slate-200 text-slate-700'
+                }`}
+              >
+                {message.text}
+              </div>
+            ))}
+          </div>
+
+          <form onSubmit={handleAskAi} className="flex gap-2">
+            <input
+              value={chatInput}
+              onChange={(event) => setChatInput(event.target.value)}
+              placeholder="Nhập câu hỏi cho AI bot..."
+              className="flex-1 h-11 px-3 border border-slate-200 rounded-lg font-semibold outline-none focus:border-blue-500"
+            />
+            <button
+              type="submit"
+              disabled={isAsking}
+              className="h-11 px-4 rounded-lg bg-[#003d9b] text-white text-sm font-black uppercase tracking-widest hover:bg-blue-700 disabled:opacity-60 inline-flex items-center gap-2"
+            >
+              <Send size={14} /> {isAsking ? 'Đang gửi' : 'Gửi'}
+            </button>
+          </form>
+        </div>
+      </Modal>
     </PageWrapper>
   );
 }
