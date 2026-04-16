@@ -1,22 +1,25 @@
-﻿import React, { useEffect, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import Modal from '../../components/ui/Modal';
-import AddStockOutItemForm from './AddStockOutItemForm';
-import { stockService } from '../../services/stockService';
-import { productService } from '../../services/productService';
+﻿import React, { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import Modal from "../../components/ui/Modal";
+import AddStockOutItemForm from "./AddStockOutItemForm";
+import { stockService } from "../../services/stockService";
+import { productService } from "../../services/productService";
+import PrintTicketModal from "./PrintTicketModal";
 
 export default function StockOut() {
     const queryClient = useQueryClient();
-    const DRAFT_KEY = 'stock-out-draft-v1';
+    const DRAFT_KEY = "stock-out-draft-v1";
 
     const [items, setItems] = useState([]);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [customer, setCustomer] = useState('');
-    const [exportDate, setExportDate] = useState('');
-    const [note, setNote] = useState('');
+    const [customer, setCustomer] = useState("");
+    const [exportDate, setExportDate] = useState("");
+    const [note, setNote] = useState("");
+    const [ticketCode, setTicketCode] = useState("");
+    const [printData, setPrintData] = useState(null);
 
     useEffect(() => {
         const rawDraft = localStorage.getItem(DRAFT_KEY);
@@ -25,31 +28,61 @@ export default function StockOut() {
         try {
             const draft = JSON.parse(rawDraft);
             setItems(Array.isArray(draft.items) ? draft.items : []);
-            setCustomer(draft.customer || '');
-            setExportDate(draft.exportDate || '');
-            setNote(draft.note || '');
+            setCustomer(draft.customer || "");
+            setExportDate(draft.exportDate || "");
+            setNote(draft.note || "");
+            setTicketCode(draft.ticketCode || "");
         } catch {
             localStorage.removeItem(DRAFT_KEY);
         }
     }, []);
 
+    // Đã gộp và chỉ giữ 1 bản duy nhất ở đây
+    const handleSaveDraft = () => {
+        const draft = { items, customer, exportDate, note, ticketCode };
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+        toast.success("Đã lưu bản nháp phiếu xuất");
+    };
+
+    const handleCancelDraft = () => {
+        const accepted = window.confirm(
+            "Bạn có chắc muốn hủy thao tác và xóa bản nháp hiện tại?",
+        );
+        if (!accepted) return;
+
+        setItems([]);
+        setCustomer("");
+        setExportDate("");
+        setNote("");
+        setTicketCode(""); // Reset mã đơn
+        localStorage.removeItem(DRAFT_KEY);
+        toast.info("Đã hủy thao tác xuất kho");
+    };
+
     const { data: products = [], isLoading: isProductsLoading } = useQuery({
-        queryKey: ['products-for-stock-out'],
+        queryKey: ["products-for-stock-out"],
         queryFn: async () => {
-            const res = await productService.getAll({ pageNumber: 1, pageSize: 100 });
+            const res = await productService.getAll({
+                pageNumber: 1,
+                pageSize: 100,
+            });
             return res?.data?.data || [];
         },
     });
 
     const handleAddItemToList = (data) => {
-        const existingItemIndex = items.findIndex((item) => item.productId === data.productId);
+        const existingItemIndex = items.findIndex(
+            (item) => item.productId === data.productId,
+        );
 
         if (existingItemIndex >= 0) {
             const newItems = [...items];
             const newQty = newItems[existingItemIndex].quantity + data.quantity;
 
             if (newQty > data.currentStock) {
-                toast.warning('Tổng số lượng xuất không được vượt quá tồn kho hiện tại');
+                toast.warning(
+                    "Tổng số lượng xuất không được vượt quá tồn kho hiện tại",
+                );
                 return;
             }
             newItems[existingItemIndex].quantity = newQty;
@@ -64,11 +97,14 @@ export default function StockOut() {
         setItems(
             items.map((item) => {
                 if (item.tempId === id) {
-                    const validQty = Math.max(1, Math.min(item.currentStock, newQty));
+                    const validQty = Math.max(
+                        1,
+                        Math.min(item.currentStock, newQty),
+                    );
                     return { ...item, quantity: validQty };
                 }
                 return item;
-            })
+            }),
         );
     };
 
@@ -79,29 +115,45 @@ export default function StockOut() {
     const createTicketMutation = useMutation({
         mutationFn: (newTicket) => stockService.createOutwardTicket(newTicket),
         onSuccess: () => {
-            toast.success('Lưu phiếu xuất kho thành công');
+            toast.success("Lưu phiếu xuất kho thành công");
+
+            setPrintData({
+                code: variables.code,
+                date: exportDate,
+                partnerName: customer,
+                reason: note,
+                items: [...items], // copy danh sách sản phẩm
+            });
+
             setItems([]);
-            setCustomer('');
-            setExportDate('');
-            setNote('');
+            setCustomer("");
+            setExportDate("");
+            setNote("");
+            setTicketCode("");
             localStorage.removeItem(DRAFT_KEY);
-            queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
-            queryClient.invalidateQueries({ queryKey: ['stock-history'] });
+            queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+            queryClient.invalidateQueries({ queryKey: ["stock-history"] });
         },
         onError: (error) => {
-            const message = error?.response?.data || 'Có lỗi xảy ra khi lưu phiếu xuất';
+            const message =
+                error?.response?.data || "Có lỗi xảy ra khi lưu phiếu xuất";
             toast.error(String(message));
         },
     });
 
     const handleSubmit = () => {
         if (items.length === 0) {
-            toast.warning('Phiếu xuất cần ít nhất một sản phẩm');
+            toast.warning("Phiếu xuất cần ít nhất một sản phẩm");
             return;
         }
 
         if (!note.trim()) {
-            toast.warning('Vui lòng nhập lý do xuất kho');
+            toast.warning("Vui lòng nhập lý do xuất kho");
+            return;
+        }
+
+        if (!ticketCode.trim()) {
+            toast.warning("Vui lòng nhập mã đơn xuất");
             return;
         }
 
@@ -110,70 +162,93 @@ export default function StockOut() {
             quantity: item.quantity,
         }));
 
+        // Gọi mutation 1 lần duy nhất với đầy đủ dữ liệu
         createTicketMutation.mutate({
+            code: ticketCode,
             reason: note,
             items: formattedItems,
         });
     };
 
-    const handleSaveDraft = () => {
-        const draft = { items, customer, exportDate, note };
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-        toast.success('Đã lưu bản nháp phiếu xuất');
-    };
-
-    const handleCancelDraft = () => {
-        const accepted = window.confirm('Bạn có chắc muốn hủy thao tác và xóa bản nháp hiện tại?');
-        if (!accepted) return;
-
-        setItems([]);
-        setCustomer('');
-        setExportDate('');
-        setNote('');
-        localStorage.removeItem(DRAFT_KEY);
-        toast.info('Đã hủy thao tác xuất kho');
-    };
-
     return (
         <div className="max-w-7xl mx-auto">
             <div className="mb-10">
-                <h2 className="text-4xl font-black tracking-tight text-slate-900 mb-3 uppercase">Xuất kho hàng hóa</h2>
-                <p className="text-slate-500 text-base max-w-lg font-medium">Quản lý quy trình xuất hàng đi và đảm bảo lưu lượng hàng hóa rời kho chính xác.</p>
+                <h2 className="text-4xl font-black tracking-tight text-slate-900 mb-3 uppercase">
+                    Xuất kho hàng hóa
+                </h2>
+                <p className="text-slate-500 text-base max-w-lg font-medium">
+                    Quản lý quy trình xuất hàng đi và đảm bảo lưu lượng hàng hóa
+                    rời kho chính xác.
+                </p>
             </div>
 
             <div className="grid grid-cols-12 gap-8">
                 <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
                     <section className="bg-surface-container-lowest p-8 rounded-xl shadow-sm border border-outline-variant/10 relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-1.5 h-full bg-primary"></div>
-                        <h3 className="text-sm font-bold uppercase tracking-[0.1em] text-primary mb-8">Thông tin chung</h3>
+                        <h3 className="text-sm font-bold uppercase tracking-[0.1em] text-primary mb-8">
+                            Thông tin chung
+                        </h3>
 
                         <div className="space-y-6">
                             <div className="space-y-2.5">
-                                <Label htmlFor="ma-xuat" className="text-xs font-bold uppercase tracking-wider text-outline">Mã đơn xuất</Label>
-                                <Input id="ma-xuat" defaultValue="OUT-AUTO" readOnly className="bg-surface-container-low border-outline-variant/30 focus-visible:ring-primary font-mono text-base h-12 shadow-sm" />
+                                <Label
+                                    htmlFor="ma-xuat"
+                                    className="text-xs font-bold uppercase tracking-wider text-outline"
+                                >
+                                    Mã đơn xuất
+                                </Label>
+                                <Input
+                                    id="ma-xuat"
+                                    placeholder="Nhập mã đơn (VD: PX-001)..."
+                                    value={ticketCode}
+                                    onChange={(e) =>
+                                        setTicketCode(e.target.value)
+                                    }
+                                    className="bg-surface-container-low border-outline-variant/30 focus-visible:ring-primary font-mono text-base h-12 shadow-sm"
+                                />
                             </div>
                             <div className="space-y-2.5">
-                                <Label htmlFor="khach-hang" className="text-xs font-bold uppercase tracking-wider text-outline">Khách hàng / Dự án</Label>
+                                <Label
+                                    htmlFor="khach-hang"
+                                    className="text-xs font-bold uppercase tracking-wider text-outline"
+                                >
+                                    Khách hàng / Dự án
+                                </Label>
                                 <Input
                                     id="khach-hang"
                                     placeholder="Nhập tên đối tác..."
                                     value={customer}
-                                    onChange={(e) => setCustomer(e.target.value)}
+                                    onChange={(e) =>
+                                        setCustomer(e.target.value)
+                                    }
                                     className="bg-surface-container-low border-outline-variant/30 focus-visible:ring-primary text-base h-12 shadow-sm"
                                 />
                             </div>
                             <div className="space-y-2.5">
-                                <Label htmlFor="ngay-xuat" className="text-xs font-bold uppercase tracking-wider text-outline">Ngày xuất</Label>
+                                <Label
+                                    htmlFor="ngay-xuat"
+                                    className="text-xs font-bold uppercase tracking-wider text-outline"
+                                >
+                                    Ngày xuất
+                                </Label>
                                 <Input
                                     id="ngay-xuat"
                                     type="date"
                                     value={exportDate}
-                                    onChange={(e) => setExportDate(e.target.value)}
+                                    onChange={(e) =>
+                                        setExportDate(e.target.value)
+                                    }
                                     className="bg-surface-container-low border-outline-variant/30 focus-visible:ring-primary text-base h-12 shadow-sm block"
                                 />
                             </div>
                             <div className="space-y-2.5">
-                                <Label htmlFor="ly-do" className="text-xs font-bold uppercase tracking-wider text-outline">Lý do xuất</Label>
+                                <Label
+                                    htmlFor="ly-do"
+                                    className="text-xs font-bold uppercase tracking-wider text-outline"
+                                >
+                                    Lý do xuất
+                                </Label>
                                 <textarea
                                     id="ly-do"
                                     value={note}
@@ -188,12 +263,23 @@ export default function StockOut() {
 
                     <div className="bg-primary text-white p-8 rounded-xl shadow-lg relative overflow-hidden flex-1">
                         <div className="absolute -right-4 -bottom-4 opacity-10">
-                            <span className="material-symbols-outlined text-9xl">inventory</span>
+                            <span className="material-symbols-outlined text-9xl">
+                                inventory
+                            </span>
                         </div>
-                        <p className="text-xs font-bold uppercase tracking-widest opacity-80 mb-2">Tổng sản phẩm xuất</p>
-                        <h4 className="text-5xl font-black mb-6">{items.length} <span className="text-xl font-medium opacity-60">Mã hàng</span></h4>
+                        <p className="text-xs font-bold uppercase tracking-widest opacity-80 mb-2">
+                            Tổng sản phẩm xuất
+                        </p>
+                        <h4 className="text-5xl font-black mb-6">
+                            {items.length}{" "}
+                            <span className="text-xl font-medium opacity-60">
+                                Mã hàng
+                            </span>
+                        </h4>
                         <div className="flex items-center gap-2 text-sm bg-white/10 w-fit px-4 py-2 rounded-full backdrop-blur-md">
-                            <span className="material-symbols-outlined text-sm">verified</span>
+                            <span className="material-symbols-outlined text-sm">
+                                verified
+                            </span>
                             <span>Trạng thái: Đang soạn thảo</span>
                         </div>
                     </div>
@@ -203,13 +289,19 @@ export default function StockOut() {
                     <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/10 flex flex-col h-full overflow-hidden">
                         <div className="p-8 flex justify-between items-center border-b border-outline-variant/10">
                             <h3 className="text-sm font-bold uppercase tracking-[0.1em] text-slate-500 flex items-center gap-2">
-                                <span className="material-symbols-outlined text-lg">list_alt</span> Danh sách sản phẩm xuất
+                                <span className="material-symbols-outlined text-lg">
+                                    list_alt
+                                </span>{" "}
+                                Danh sách sản phẩm xuất
                             </h3>
                             <button
                                 onClick={() => setIsAddModalOpen(true)}
                                 className="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-white bg-[#003d9b] hover:bg-blue-700 px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-blue-900/20"
                             >
-                                <span className="material-symbols-outlined text-base">add_circle</span> Thêm sản phẩm
+                                <span className="material-symbols-outlined text-base">
+                                    add_circle
+                                </span>{" "}
+                                Thêm sản phẩm
                             </button>
                         </div>
 
@@ -217,30 +309,53 @@ export default function StockOut() {
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr>
-                                        <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">Mã</th>
-                                        <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">Tên sản phẩm</th>
-                                        <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Tồn kho hiện tại</th>
-                                        <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">Số lượng xuất</th>
+                                        <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                            Mã
+                                        </th>
+                                        <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                            Tên sản phẩm
+                                        </th>
+                                        <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">
+                                            Tồn kho hiện tại
+                                        </th>
+                                        <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">
+                                            Số lượng xuất
+                                        </th>
                                         <th className="px-8 py-5"></th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-outline-variant/10">
                                     {items.length === 0 ? (
                                         <tr>
-                                            <td colSpan="5" className="px-8 py-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
+                                            <td
+                                                colSpan="5"
+                                                className="px-8 py-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs"
+                                            >
                                                 Chưa có sản phẩm nào trong phiếu
                                             </td>
                                         </tr>
                                     ) : (
                                         items.map((item) => (
-                                            <tr key={item.tempId} className="hover:bg-surface-container-low/40 transition-colors">
-                                                <td className="px-8 py-6 font-mono text-sm font-bold text-primary">{item.sku || `SP-${item.productId}`}</td>
+                                            <tr
+                                                key={item.tempId}
+                                                className="hover:bg-surface-container-low/40 transition-colors"
+                                            >
+                                                <td className="px-8 py-6 font-mono text-sm font-bold text-primary">
+                                                    {item.sku ||
+                                                        `SP-${item.productId}`}
+                                                </td>
                                                 <td className="px-8 py-6">
-                                                    <p className="text-base font-bold text-slate-900 mb-1">{item.name}</p>
-                                                    <p className="text-xs text-slate-400 uppercase">{item.category}</p>
+                                                    <p className="text-base font-bold text-slate-900 mb-1">
+                                                        {item.name}
+                                                    </p>
+                                                    <p className="text-xs text-slate-400 uppercase">
+                                                        {item.category}
+                                                    </p>
                                                 </td>
                                                 <td className="px-8 py-6 text-right">
-                                                    <span className="text-base font-medium text-slate-600">{item.currentStock.toLocaleString()}</span>
+                                                    <span className="text-base font-medium text-slate-600">
+                                                        {item.currentStock.toLocaleString()}
+                                                    </span>
                                                 </td>
                                                 <td className="px-8 py-6 text-center">
                                                     <Input
@@ -248,13 +363,31 @@ export default function StockOut() {
                                                         min="1"
                                                         max={item.currentStock}
                                                         value={item.quantity}
-                                                        onChange={(e) => updateQuantity(item.tempId, parseInt(e.target.value, 10) || 1)}
+                                                        onChange={(e) =>
+                                                            updateQuantity(
+                                                                item.tempId,
+                                                                parseInt(
+                                                                    e.target
+                                                                        .value,
+                                                                    10,
+                                                                ) || 1,
+                                                            )
+                                                        }
                                                         className="w-24 h-10 mx-auto text-center bg-surface-container-low border-outline-variant/30 focus-visible:ring-primary font-bold text-base shadow-sm"
                                                     />
                                                 </td>
                                                 <td className="px-8 py-6 text-right">
-                                                    <button onClick={() => removeItem(item.tempId)} className="text-error/50 hover:text-error transition-colors">
-                                                        <span className="material-symbols-outlined text-xl">delete</span>
+                                                    <button
+                                                        onClick={() =>
+                                                            removeItem(
+                                                                item.tempId,
+                                                            )
+                                                        }
+                                                        className="text-error/50 hover:text-error transition-colors"
+                                                    >
+                                                        <span className="material-symbols-outlined text-xl">
+                                                            delete
+                                                        </span>
                                                     </button>
                                                 </td>
                                             </tr>
@@ -266,23 +399,46 @@ export default function StockOut() {
 
                         <div className="p-8 border-t border-outline-variant/10 flex items-center justify-between mt-auto">
                             <div className="flex items-center gap-6">
-                                <button onClick={handleSaveDraft} className="text-base font-bold text-slate-600 hover:text-slate-900 transition-colors">Lưu bản nháp</button>
-                                <button onClick={handleCancelDraft} className="text-base font-bold text-error hover:text-red-700 transition-colors">Hủy bỏ</button>
+                                <button
+                                    onClick={handleSaveDraft}
+                                    className="text-base font-bold text-slate-600 hover:text-slate-900 transition-colors"
+                                >
+                                    Lưu bản nháp
+                                </button>
+                                <button
+                                    onClick={handleCancelDraft}
+                                    className="text-base font-bold text-error hover:text-red-700 transition-colors"
+                                >
+                                    Hủy bỏ
+                                </button>
                             </div>
                             <button
                                 onClick={handleSubmit}
-                                disabled={items.length === 0 || createTicketMutation.isPending}
+                                disabled={
+                                    items.length === 0 ||
+                                    createTicketMutation.isPending
+                                }
                                 className="bg-primary text-white px-8 py-4 rounded-xl text-base font-bold shadow-lg shadow-primary/30 flex items-center gap-3 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
                             >
-                                {createTicketMutation.isPending ? 'Đang xử lý...' : 'Xác nhận xuất kho'}
-                                <span className="material-symbols-outlined text-xl">{createTicketMutation.isPending ? 'sync' : 'rocket_launch'}</span>
+                                {createTicketMutation.isPending
+                                    ? "Đang xử lý..."
+                                    : "Xác nhận xuất kho"}
+                                <span className="material-symbols-outlined text-xl">
+                                    {createTicketMutation.isPending
+                                        ? "sync"
+                                        : "rocket_launch"}
+                                </span>
                             </button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Tìm & Chọn Hàng Xuất Kho">
+            <Modal
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                title="Tìm & Chọn Hàng Xuất Kho"
+            >
                 <AddStockOutItemForm
                     products={products}
                     isLoading={isProductsLoading}
@@ -290,6 +446,14 @@ export default function StockOut() {
                     onClose={() => setIsAddModalOpen(false)}
                 />
             </Modal>
+
+            {/* Modal hiển thị báo thành công & in phiếu */}
+            <PrintTicketModal
+                isOpen={!!printData}
+                onClose={() => setPrintData(null)}
+                ticketData={printData}
+                type="OUT"
+            />
         </div>
     );
 }

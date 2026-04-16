@@ -101,9 +101,9 @@ export default function Reports() {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-7xl mx-auto">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full">
       <div className="mb-10">
-        <h2 className="text-4xl font-black text-slate-900 mb-3 uppercase tracking-tight">Trung tâm báo cáo & nhật ký</h2>
+        <h2 className="text-4xl font-black text-slate-900 mb-3 uppercase tracking-tight">Báo cáo</h2>
         <p className="text-slate-500 font-medium">Một màn hình cho cả xuất báo cáo và tra cứu logs nhập xuất.</p>
       </div>
 
@@ -163,101 +163,6 @@ export default function Reports() {
             </button>
           </motion.div>
         ))}
-      </div>
-
-      <div className="mt-10 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <h3 className="text-xl font-black uppercase tracking-tight text-slate-900">Nhật ký giao dịch</h3>
-          <div className="inline-flex bg-slate-100 p-1 rounded-lg">
-            <button
-              onClick={() => setActiveLogType('ALL')}
-              className={`px-3 py-2 text-xs font-black uppercase rounded-md ${activeLogType === 'ALL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
-            >
-              Tất cả
-            </button>
-            <button
-              onClick={() => setActiveLogType('IN')}
-              className={`px-3 py-2 text-xs font-black uppercase rounded-md inline-flex items-center gap-1 ${activeLogType === 'IN' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500'}`}
-            >
-              <ArrowDownLeft size={14} /> Nhập
-            </button>
-            <button
-              onClick={() => setActiveLogType('OUT')}
-              className={`px-3 py-2 text-xs font-black uppercase rounded-md inline-flex items-center gap-1 ${activeLogType === 'OUT' ? 'bg-white text-orange-700 shadow-sm' : 'text-slate-500'}`}
-            >
-              <ArrowUpRight size={14} /> Xuất
-            </button>
-          </div>
-        </div>
-
-        <div className="mb-4 relative">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Tìm theo ID giao dịch, tên sản phẩm, ghi chú..."
-            className="w-full pl-10 pr-3 h-11 border border-slate-200 rounded-lg font-semibold outline-none focus:border-blue-500"
-          />
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left border-collapse">
-            <colgroup>
-              <col className="w-[90px]" />
-              <col className="w-[280px]" />
-              <col className="w-[120px]" />
-              <col className="w-[120px]" />
-              <col className="w-[220px]" />
-              <col />
-            </colgroup>
-            <thead>
-              <tr className="border-b border-slate-200">
-                <th className="px-2 py-3 text-[11px] uppercase tracking-widest text-slate-500 font-black">Mã GD</th>
-                <th className="px-2 py-3 text-[11px] uppercase tracking-widest text-slate-500 font-black">Sản phẩm</th>
-                <th className="px-2 py-3 text-[11px] uppercase tracking-widest text-slate-500 font-black">Loại</th>
-                <th className="px-2 py-3 text-[11px] uppercase tracking-widest text-slate-500 font-black text-right">Số lượng</th>
-                <th className="px-2 py-3 text-[11px] uppercase tracking-widest text-slate-500 font-black">Thời gian</th>
-                <th className="px-2 py-3 text-[11px] uppercase tracking-widest text-slate-500 font-black">Ghi chú</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan="6" className="py-10 text-center">
-                    <Loader2 className="mx-auto animate-spin text-blue-700" size={24} />
-                  </td>
-                </tr>
-              ) : filteredLogs.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="py-8 text-center text-slate-400 text-xs font-black uppercase tracking-widest">
-                    Không có giao dịch phù hợp
-                  </td>
-                </tr>
-              ) : (
-                filteredLogs.map((item, index) => {
-                  const rawType = String(item.type || item.transactionType || '').toUpperCase();
-                  const isIn = rawType.includes('IMPORT') || rawType.includes('IN') || rawType.includes('NHAP');
-                  const txDate = item.date || item.transactionDate;
-
-                  return (
-                    <tr key={`${item.id || index}-${txDate || ''}`} className="border-b border-slate-100">
-                      <td className="px-2 py-3 text-sm font-mono font-bold text-slate-700">{item.id}</td>
-                      <td className="px-2 py-3 text-sm font-bold text-slate-900">{item.productName || '-'}</td>
-                      <td className="px-2 py-3">
-                        <span className={`px-2 py-1 rounded-full text-[10px] uppercase font-black ${isIn ? 'bg-blue-50 text-blue-700' : 'bg-orange-50 text-orange-700'}`}>
-                          {isIn ? 'Nhập' : 'Xuất'}
-                        </span>
-                      </td>
-                      <td className="px-2 py-3 text-right text-sm font-black text-slate-800">{item.quantity || 0}</td>
-                      <td className="px-2 py-3 text-sm text-slate-600 whitespace-nowrap">{txDate ? new Date(txDate).toLocaleString() : '-'}</td>
-                      <td className="px-2 py-3 text-sm text-slate-500">{item.note || '-'}</td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
       </div>
     </motion.div>
   );
