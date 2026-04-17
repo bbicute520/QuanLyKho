@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Inventory.Service.Data;
 using Inventory.Service.DTOs;
@@ -8,6 +9,7 @@ namespace Inventory.Service.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class InventoryController : ControllerBase
     {
         private readonly WarehouseDbContext _context;
@@ -70,6 +72,7 @@ namespace Inventory.Service.Controllers
 
         // POST: api/inventory/import
         [HttpPost("import")]
+        [Authorize(Roles = "Admin,ThuKho")]
         public async Task<IActionResult> ImportStock([FromBody] ImportRequestDto request)
         {
             if (request.Items == null || !request.Items.Any()) return BadRequest("Danh sách trống.");
@@ -119,6 +122,7 @@ namespace Inventory.Service.Controllers
 
         // POST: api/inventory/export
         [HttpPost("export")]
+        [Authorize(Roles = "Admin,ThuKho")]
         public async Task<IActionResult> ExportStock([FromBody] ExportRequestDto request)
         {
             if (request.Items == null || !request.Items.Any()) return BadRequest("Danh sách trống.");

@@ -110,5 +110,21 @@ namespace Supplier.Service.Controllers
             await _context.SaveChangesAsync();
             return Ok(supplier);
         }
+
+        [HttpDelete("{id:int}")]
+        [Authorize(Roles = "Admin,ThuKho")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var supplier = await _context.Suppliers.FindAsync(id);
+            if (supplier == null)
+            {
+                return NotFound("Không tìm thấy nhà cung cấp.");
+            }
+
+            _context.Suppliers.Remove(supplier);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
     }
 }

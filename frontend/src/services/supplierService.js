@@ -13,6 +13,9 @@ export const supplierService = {
     // Cập nhật
     update: async (id, data) => await axiosInstance.put(`/supplier/${id}`, data),
 
+    // Xóa
+    delete: async (id) => await axiosInstance.delete(`/supplier/${id}`),
+
     // Danh mục động từ dữ liệu nhà cung cấp hiện có
     getCategories: async () => {
         const response = await axiosInstance.get('/supplier');

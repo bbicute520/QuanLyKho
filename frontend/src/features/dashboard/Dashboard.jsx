@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import PageWrapper from "../../components/layout/PageWrapper";
@@ -35,6 +35,18 @@ import StockInHistory from "../transactions/StockInHistory";
 export default function Dashboard() {
     const navigate = useNavigate();
     const { role } = useAuthStore(); // LẤY ROLE TỪ ĐÂY
+    const reportSectionRef = useRef(null);
+    const historySectionRef = useRef(null);
+
+    const canViewReports = ["Admin", "KeToan"].includes(role);
+    const canViewHistory = ["Admin", "ThuKho", "KeToan"].includes(role);
+
+    const scrollToSection = (sectionRef) => {
+        sectionRef?.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+        });
+    };
 
     // Dữ liệu mặc định khi chưa có report API
     const zeroData = {
@@ -368,45 +380,25 @@ export default function Dashboard() {
                             )}
                         </div>
 
-                        {/* ĐÂY LÀ CHỖ DUY NHẤT THAY ĐỔI ĐỂ PHÂN QUYỀN NÚT BẤM */}
-                        {role === "ThuKho" ? (
-                            <button
-                                onClick={() => {
-                                    // Thay vì navigate, cuộn mượt xuống bảng bên dưới
-                                    window.scrollTo({
-                                        top: document.body.scrollHeight,
-                                        behavior: "smooth",
-                                    });
-                                }}
-                                className="w-full mt-10 py-4 text-sm md:text-base font-black text-[#003d9b] bg-[#dae2ff] hover:bg-[#c4d2ff] rounded-xl transition-all uppercase tracking-widest"
-                            >
-                                Xem lịch sử nhật ký
-                            </button>
-                        ) : role === "KeToan" ? (
-                            <button
-                                onClick={() => {
-                                    window.scrollTo({
-                                        top: document.body.scrollHeight,
-                                        behavior: "smooth",
-                                    });
-                                }}
-                                className="w-full mt-10 py-4 text-sm md:text-base font-black text-[#003d9b] bg-[#dae2ff] hover:bg-[#c4d2ff] rounded-xl transition-all uppercase tracking-widest"
-                            >
-                                Trích xuất báo cáo
-                            </button>
-                        ) : (
-                            <button
-                                onClick={() => {
-                                    window.scrollTo({
-                                        top: document.body.scrollHeight,
-                                        behavior: "smooth",
-                                    });
-                                }}
-                                className="w-full mt-10 py-4 text-sm md:text-base font-black text-[#003d9b] bg-[#dae2ff] hover:bg-[#c4d2ff] rounded-xl transition-all uppercase tracking-widest"
-                            >
-                                Xem báo cáo & nhật ký
-                            </button>
-                        )}
+                        <div className="mt-10 flex flex-col gap-3">
+                            {canViewReports && (
+                                <button
+                                    onClick={() => scrollToSection(reportSectionRef)}
+                                    className="w-full py-4 text-sm md:text-base font-black text-[#003d9b] bg-[#dae2ff] hover:bg-[#c4d2ff] rounded-xl transition-all uppercase tracking-widest"
+                                >
+                                    Xem báo cáo
+                                </button>
+                            )}
+
+                            {canViewHistory && (
+                                <button
+                                    onClick={() => scrollToSection(historySectionRef)}
+                                    className="w-full py-4 text-sm md:text-base font-black text-[#003d9b] bg-[#dae2ff] hover:bg-[#c4d2ff] rounded-xl transition-all uppercase tracking-widest"
+                                >
+                                    Xem nhật ký
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -476,15 +468,15 @@ export default function Dashboard() {
             {/* ========================================================= */}
 
             {/* TRUNG TÂM BÁO CÁO: Hiện cho QUẢN LÝ và KẾ TOÁN */}
-            {["Admin", "KeToan"].includes(role) && ( // Sửa thành Admin, KeToan
-                <div className="mt-16 pt-10 border-t-4 border-slate-100">
+            {canViewReports && (
+                <div ref={reportSectionRef} className="mt-16 pt-10 border-t-4 border-slate-100">
                     <Reports />
                 </div>
             )}
 
             {/* NHẬT KÝ GIAO DỊCH: Hiện cho QUẢN LÝ và THỦ KHO */}
-            {["Admin", "ThuKho", "KeToan"].includes(role) && ( // Sửa thành Admin, ThuKho
-                <div className="mt-16 pt-10 border-t-4 border-slate-100">
+            {canViewHistory && (
+                <div ref={historySectionRef} className="mt-16 pt-10 border-t-4 border-slate-100">
                     <StockInHistory />
                 </div>
             )}

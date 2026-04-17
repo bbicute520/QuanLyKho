@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OfficeOpenXml;
 using Report.Service.DTOs;
@@ -9,6 +10,7 @@ namespace Report.Service.Controllers;
 
 [ApiController]
 [Route("api/report")]
+[Authorize(Roles = "Admin,KeToan")]
 public sealed class ReportController : ControllerBase
 {
     private readonly InventoryReportClient _inventoryReportClient;
@@ -18,10 +20,27 @@ public sealed class ReportController : ControllerBase
         _inventoryReportClient = inventoryReportClient;
     }
 
+    private string? ResolveBearerToken()
+    {
+        var authHeader = Request.Headers.Authorization.ToString();
+        if (!string.IsNullOrWhiteSpace(authHeader))
+        {
+            return authHeader;
+        }
+
+        if (Request.Cookies.TryGetValue("access_token", out var cookieToken) && !string.IsNullOrWhiteSpace(cookieToken))
+        {
+            return $"Bearer {cookieToken}";
+        }
+
+        return null;
+    }
+
     [HttpGet("stock")]
     public async Task<IActionResult> GetStockReport(CancellationToken cancellationToken)
     {
-        var stock = await _inventoryReportClient.GetStockAsync(cancellationToken);
+        var bearerToken = ResolveBearerToken();
+        var stock = await _inventoryReportClient.GetStockAsync(bearerToken, cancellationToken);
 
         var payload = new
         {
@@ -43,7 +62,8 @@ public sealed class ReportController : ControllerBase
         [FromQuery] int limit = 200,
         CancellationToken cancellationToken = default)
     {
-        var history = await _inventoryReportClient.GetHistoryAsync(limit, cancellationToken);
+        var bearerToken = ResolveBearerToken();
+        var history = await _inventoryReportClient.GetHistoryAsync(limit, bearerToken, cancellationToken);
         var filtered = FilterTransactions(history, from, to, type)
             .OrderByDescending(item => ResolveTransactionDate(item))
             .ToList();
@@ -59,6 +79,7 @@ public sealed class ReportController : ControllerBase
         [FromQuery] string? format,
         CancellationToken cancellationToken)
     {
+        var bearerToken = ResolveBearerToken();
         var normalizedFormat = string.IsNullOrWhiteSpace(format) ? "xlsx" : format.Trim().ToLowerInvariant();
         if (normalizedFormat is not ("xlsx" or "csv"))
         {
@@ -71,7 +92,7 @@ public sealed class ReportController : ControllerBase
 
         if (normalizedType == "inventory")
         {
-            var stockRows = await _inventoryReportClient.GetStockAsync(cancellationToken);
+            var stockRows = await _inventoryReportClient.GetStockAsync(bearerToken, cancellationToken);
             if (normalizedFormat == "csv")
             {
                 var csv = BuildInventoryCsv(stockRows);
@@ -89,7 +110,7 @@ public sealed class ReportController : ControllerBase
             _ => string.Empty
         };
 
-        var history = await _inventoryReportClient.GetHistoryAsync(500, cancellationToken);
+        var history = await _inventoryReportClient.GetHistoryAsync(500, bearerToken, cancellationToken);
         var transactionRows = FilterTransactions(history, from, to, typeFilter)
             .OrderByDescending(item => ResolveTransactionDate(item))
             .ToList();

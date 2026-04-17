@@ -14,6 +14,21 @@ import { toast } from 'sonner';
 import Modal from '../../components/ui/Modal';
 import ProductFilterForm from './ProductFilterForm';
 import { productService } from '../../services/productService';
+import useAuthStore from '../../lib/authStore';
+
+const defaultFilters = {
+    category: 'Tất cả',
+    categoryQuery: '',
+    status: 'Tất cả',
+    minStock: ''
+};
+
+const normalizeText = (value) =>
+    String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
 
 const defaultForm = {
     name: '',
@@ -26,17 +41,17 @@ const defaultForm = {
 
 export default function ProductList() {
     const queryClient = useQueryClient();
+    const role = useAuthStore((state) => state.role);
+    const canManageProducts = role === 'Admin' || role === 'ThuKho';
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
     const [searchName, setSearchName] = useState('');
     const [searchProductId, setSearchProductId] = useState('');
     const [editingProduct, setEditingProduct] = useState(null);
     const [productForm, setProductForm] = useState(defaultForm);
-    const [activeFilters, setActiveFilters] = useState({
-        category: 'Tất cả',
-        status: 'Tất cả',
-        minStock: ''
-    });
+    const [activeFilters, setActiveFilters] = useState(() => ({ ...defaultFilters }));
+    const [deleteCandidate, setDeleteCandidate] = useState(null);
+    const [pendingUpdate, setPendingUpdate] = useState(null);
 
     const { data: products = [], isLoading, isError, refetch } = useQuery({
         queryKey: ['products'],
@@ -84,6 +99,9 @@ export default function ProductList() {
         return products.filter((product) => {
             const lowerName = searchName.trim().toLowerCase();
             const lowerProductId = searchProductId.trim().toLowerCase();
+            const normalizedProductCategory = normalizeText(product.category);
+            const normalizedSelectedCategory = normalizeText(activeFilters.category);
+            const normalizedCategoryQuery = normalizeText(activeFilters.categoryQuery);
 
             const matchesName =
                 lowerName === '' ||
@@ -95,7 +113,11 @@ export default function ProductList() {
 
             const matchesCategory =
                 activeFilters.category === 'Tất cả' ||
-                product.category === activeFilters.category;
+                normalizedProductCategory === normalizedSelectedCategory;
+
+            const matchesCategoryQuery =
+                normalizedCategoryQuery === '' ||
+                normalizedProductCategory.includes(normalizedCategoryQuery);
 
             let matchesStatus = true;
             if (activeFilters.status === 'Hết hàng') {
@@ -110,25 +132,43 @@ export default function ProductList() {
                 activeFilters.minStock === '' ||
                 product.stock >= Number.parseInt(activeFilters.minStock, 10);
 
-            return matchesName && matchesProductId && matchesCategory && matchesStatus && matchesMinStock;
+            return (
+                matchesName &&
+                matchesProductId &&
+                matchesCategory &&
+                matchesCategoryQuery &&
+                matchesStatus &&
+                matchesMinStock
+            );
         });
     }, [products, searchName, searchProductId, activeFilters]);
 
     const handleDeleteProduct = (id, name) => {
-        const accepted = window.confirm(`Xác nhận xóa sản phẩm: ${name}?`);
-        if (!accepted) {
+        if (!canManageProducts) {
+            toast.warning('Bạn không có quyền xóa sản phẩm');
             return;
         }
-        deleteMutation.mutate(id);
+
+        setDeleteCandidate({ id, name });
     };
 
     const openCreateModal = () => {
+        if (!canManageProducts) {
+            toast.warning('Bạn không có quyền thêm sản phẩm');
+            return;
+        }
+
         setEditingProduct(null);
         setProductForm(defaultForm);
         setIsProductModalOpen(true);
     };
 
     const openEditModal = (product) => {
+        if (!canManageProducts) {
+            toast.warning('Bạn không có quyền chỉnh sửa sản phẩm');
+            return;
+        }
+
         setEditingProduct(product);
         setProductForm({
             name: product.name || '',
@@ -145,6 +185,7 @@ export default function ProductList() {
         setIsProductModalOpen(false);
         setEditingProduct(null);
         setProductForm(defaultForm);
+        setPendingUpdate(null);
     };
 
     const handleProductFormChange = (field, value) => {
@@ -153,6 +194,11 @@ export default function ProductList() {
 
     const handleSubmitProduct = (event) => {
         event.preventDefault();
+
+        if (!canManageProducts) {
+            toast.warning('Bạn không có quyền thao tác sản phẩm');
+            return;
+        }
 
         if (!productForm.name.trim() || !productForm.category.trim() || !productForm.unit.trim()) {
             toast.warning('Tên, danh mục và đơn vị tính là bắt buộc');
@@ -170,14 +216,46 @@ export default function ProductList() {
         };
 
         if (editingProduct) {
-            updateMutation.mutate({ id: editingProduct.id, payload });
+            setPendingUpdate({
+                id: editingProduct.id,
+                name: payload.name,
+                payload
+            });
+            setIsProductModalOpen(false);
             return;
         }
 
         createMutation.mutate(payload);
     };
 
+    const confirmDeleteProduct = () => {
+        if (!deleteCandidate) {
+            return;
+        }
+
+        deleteMutation.mutate(deleteCandidate.id);
+        setDeleteCandidate(null);
+    };
+
+    const confirmUpdateProduct = () => {
+        if (!pendingUpdate) {
+            return;
+        }
+
+        updateMutation.mutate({
+            id: pendingUpdate.id,
+            payload: pendingUpdate.payload
+        });
+        setPendingUpdate(null);
+    };
+
+    const cancelUpdateConfirmation = () => {
+        setPendingUpdate(null);
+        setIsProductModalOpen(true);
+    };
+
     const isSaving = createMutation.isPending || updateMutation.isPending;
+    const tableColumnCount = canManageProducts ? 5 : 4;
 
     return (
         <div className="max-w-7xl mx-auto not-italic">
@@ -190,12 +268,14 @@ export default function ProductList() {
                         Quản lý kho hàng với dữ liệu thời gian thực từ hệ thống.
                     </p>
                 </div>
-                <button
-                    onClick={openCreateModal}
-                    className="inline-flex items-center gap-2 bg-[#003d9b] text-white px-5 py-3 rounded-xl text-sm font-black uppercase tracking-widest hover:bg-blue-700 transition-colors"
-                >
-                    <Plus size={16} /> Thêm sản phẩm
-                </button>
+                {canManageProducts && (
+                    <button
+                        onClick={openCreateModal}
+                        className="inline-flex items-center gap-2 bg-[#003d9b] text-white px-5 py-3 rounded-xl text-sm font-black uppercase tracking-widest hover:bg-blue-700 transition-colors"
+                    >
+                        <Plus size={16} /> Thêm sản phẩm
+                    </button>
+                )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
@@ -230,7 +310,12 @@ export default function ProductList() {
                     <button
                         onClick={() => setIsFilterModalOpen(true)}
                         className={`px-6 py-3 font-black text-[10px] uppercase rounded-lg flex items-center justify-center gap-2 ${
-                            (activeFilters.category !== 'Tất cả' || activeFilters.status !== 'Tất cả' || activeFilters.minStock !== '')
+                            (
+                                activeFilters.category !== 'Tất cả' ||
+                                activeFilters.categoryQuery !== '' ||
+                                activeFilters.status !== 'Tất cả' ||
+                                activeFilters.minStock !== ''
+                            )
                                 ? 'bg-[#003d9b] text-white'
                                 : 'bg-slate-100 text-slate-500'
                         }`}
@@ -249,13 +334,15 @@ export default function ProductList() {
                                 <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Tồn kho</th>
                                 <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Mức tối thiểu</th>
                                 <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Trạng thái</th>
-                                <th className="px-8 py-5 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">Thao tác</th>
+                                {canManageProducts && (
+                                    <th className="px-8 py-5 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">Thao tác</th>
+                                )}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {isLoading && (
                                 <tr>
-                                    <td colSpan="5" className="py-20 text-center">
+                                    <td colSpan={tableColumnCount} className="py-20 text-center">
                                         <Loader2 className="animate-spin mx-auto text-primary mb-2" size={32} />
                                         <p className="text-xs font-black uppercase text-slate-400">Đang đồng bộ dữ liệu...</p>
                                     </td>
@@ -264,7 +351,7 @@ export default function ProductList() {
 
                             {isError && (
                                 <tr>
-                                    <td colSpan="5" className="py-20 text-center text-red-500">
+                                    <td colSpan={tableColumnCount} className="py-20 text-center text-red-500">
                                         <AlertCircle className="mx-auto mb-2" size={32} />
                                         <p className="font-bold">Mất kết nối API. Vui lòng kiểm tra lại.</p>
                                     </td>
@@ -273,7 +360,7 @@ export default function ProductList() {
 
                             {!isLoading && !isError && filteredProducts.length === 0 && (
                                 <tr>
-                                    <td colSpan="5" className="py-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
+                                    <td colSpan={tableColumnCount} className="py-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
                                         Không có sản phẩm phù hợp bộ lọc
                                     </td>
                                 </tr>
@@ -306,22 +393,24 @@ export default function ProductList() {
                                             {product.stock > product.minStock ? 'Còn hàng' : product.stock > 0 ? 'Sắp hết' : 'Hết hàng'}
                                         </span>
                                     </td>
-                                    <td className="px-8 py-6 text-right">
-                                        <div className="inline-flex items-center gap-2">
-                                            <button
-                                                onClick={() => openEditModal(product)}
-                                                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-black uppercase"
-                                            >
-                                                <Pencil size={14} /> Sửa
-                                            </button>
-                                            <button
-                                                onClick={() => handleDeleteProduct(product.id, product.name)}
-                                                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 text-xs font-black uppercase"
-                                            >
-                                                <Trash2 size={14} /> Xóa
-                                            </button>
-                                        </div>
-                                    </td>
+                                    {canManageProducts && (
+                                        <td className="px-8 py-6 text-right">
+                                            <div className="inline-flex items-center gap-2">
+                                                <button
+                                                    onClick={() => openEditModal(product)}
+                                                    className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-black uppercase"
+                                                >
+                                                    <Pencil size={14} /> Sửa
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteProduct(product.id, product.name)}
+                                                    className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 text-xs font-black uppercase"
+                                                >
+                                                    <Trash2 size={14} /> Xóa
+                                                </button>
+                                            </div>
+                                        </td>
+                                    )}
                                 </tr>
                             ))}
                         </tbody>
@@ -344,10 +433,10 @@ export default function ProductList() {
                 <ProductFilterForm
                     initialFilters={activeFilters}
                     onApply={(filters) => {
-                        setActiveFilters(filters);
+                        setActiveFilters({ ...defaultFilters, ...filters });
                         setIsFilterModalOpen(false);
                     }}
-                    onReset={() => setActiveFilters({ category: 'Tất cả', status: 'Tất cả', minStock: '' })}
+                    onReset={() => setActiveFilters({ ...defaultFilters })}
                     onClose={() => setIsFilterModalOpen(false)}
                 />
             </Modal>
@@ -439,6 +528,70 @@ export default function ProductList() {
                         </button>
                     </div>
                 </form>
+            </Modal>
+
+            <Modal
+                isOpen={!!deleteCandidate}
+                onClose={() => setDeleteCandidate(null)}
+                title="Xác nhận xóa sản phẩm"
+            >
+                <div className="space-y-6">
+                    <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                        Hành động này sẽ xóa sản phẩm khỏi hệ thống.
+                    </div>
+                    <div>
+                        <p className="text-sm text-slate-600">Bạn có chắc chắn muốn xóa sản phẩm này?</p>
+                        <p className="mt-2 text-lg font-black text-slate-900 uppercase">{deleteCandidate?.name || '-'}</p>
+                    </div>
+                    <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
+                        <button
+                            type="button"
+                            onClick={() => setDeleteCandidate(null)}
+                            className="px-4 py-2 rounded-lg text-sm font-black uppercase text-slate-500 hover:bg-slate-100"
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            type="button"
+                            onClick={confirmDeleteProduct}
+                            className="px-5 py-2 rounded-lg text-sm font-black uppercase bg-red-600 text-white hover:bg-red-700"
+                        >
+                            Xác nhận xóa
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={!!pendingUpdate}
+                onClose={cancelUpdateConfirmation}
+                title="Xác nhận lưu thay đổi"
+            >
+                <div className="space-y-6">
+                    <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700">
+                        Bạn đang cập nhật thông tin sản phẩm.
+                    </div>
+                    <div>
+                        <p className="text-sm text-slate-600">Lưu thay đổi cho sản phẩm sau?</p>
+                        <p className="mt-2 text-lg font-black text-slate-900 uppercase">{pendingUpdate?.name || '-'}</p>
+                    </div>
+                    <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
+                        <button
+                            type="button"
+                            onClick={cancelUpdateConfirmation}
+                            className="px-4 py-2 rounded-lg text-sm font-black uppercase text-slate-500 hover:bg-slate-100"
+                        >
+                            Quay lại chỉnh sửa
+                        </button>
+                        <button
+                            type="button"
+                            onClick={confirmUpdateProduct}
+                            className="px-5 py-2 rounded-lg text-sm font-black uppercase bg-[#003d9b] text-white hover:bg-blue-700"
+                        >
+                            Xác nhận lưu
+                        </button>
+                    </div>
+                </div>
             </Modal>
         </div>
     );

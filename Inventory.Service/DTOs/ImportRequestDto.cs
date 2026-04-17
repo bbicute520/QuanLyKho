@@ -24,5 +24,8 @@ namespace Inventory.Service.DTOs
         [Required(ErrorMessage = "Số lượng (Quantity) là bắt buộc")]
         [Range(1, 100000, ErrorMessage = "Số lượng nhập kho phải lớn hơn 0 và không vượt quá 100,000")]
         public int Quantity { get; set; }
+
+        [Range(typeof(decimal), "0", "79228162514264337593543950335", ErrorMessage = "Giá nhập kho không được âm")]
+        public decimal? Price { get; set; }
     }
 }

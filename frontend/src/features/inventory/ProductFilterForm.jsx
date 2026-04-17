@@ -1,15 +1,32 @@
 import React, { useState } from 'react';
 import { Check, RotateCcw } from 'lucide-react';
 
-export default function ProductFilterForm({ onApply, onReset, onClose, initialFilters }) {
-  const [filters, setFilters] = useState(initialFilters || {
+const defaultFilters = {
     category: 'Tất cả',
+    categoryQuery: '',
     status: 'Tất cả',
-    minStock: '',
-  });
+    minStock: ''
+};
 
-  const categories = ['Tất cả', 'Điện tử', 'Phụ kiện', 'Âm thanh', 'Thời trang'];
+const fixedCategoryOptions = ['Tất cả', 'Điện tử', 'Gia dụng', 'Thực phẩm'];
+
+export default function ProductFilterForm({ onApply, onReset, onClose, initialFilters }) {
+  const [filters, setFilters] = useState({ ...defaultFilters, ...(initialFilters || {}) });
+
   const statuses = ['Tất cả', 'Còn hàng', 'Sắp hết', 'Hết hàng'];
+
+  const handleReset = () => {
+    setFilters({ ...defaultFilters });
+    onReset?.();
+  };
+
+  const handleApply = () => {
+    onApply({
+      ...filters,
+      category: filters.category || 'Tất cả',
+      categoryQuery: (filters.categoryQuery || '').trim(),
+    });
+  };
 
   return (
     <div className="space-y-8 not-italic">
@@ -17,7 +34,7 @@ export default function ProductFilterForm({ onApply, onReset, onClose, initialFi
         {/* Caption: 14px */}
         <label className="text-sm font-black uppercase tracking-[0.2em] text-[#003d9b]">Danh mục hàng hóa</label>
         <div className="flex flex-wrap gap-2">
-          {categories.map((cat) => (
+          {fixedCategoryOptions.map((cat) => (
             <button
               key={cat}
               type="button"
@@ -32,6 +49,14 @@ export default function ProductFilterForm({ onApply, onReset, onClose, initialFi
             </button>
           ))}
         </div>
+
+        <input
+          type="text"
+          placeholder="Hoặc nhập danh mục để tìm (vd: thực phẩm)..."
+          value={filters.categoryQuery || ''}
+          onChange={(e) => setFilters({ ...filters, categoryQuery: e.target.value })}
+          className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-1 focus:ring-[#003d9b] outline-none font-bold text-base text-slate-900"
+        />
       </div>
 
       <div className="space-y-4">
@@ -70,14 +95,14 @@ export default function ProductFilterForm({ onApply, onReset, onClose, initialFi
       <div className="pt-6 border-t border-slate-100 flex items-center gap-3">
         <button 
           type="button"
-          onClick={() => { onReset(); onClose(); }}
+          onClick={handleReset}
           className="flex-1 flex items-center justify-center gap-2 py-4 text-sm font-black uppercase tracking-widest text-slate-400 hover:bg-slate-100 rounded-2xl transition-all"
         >
           <RotateCcw size={16} /> Làm mới
         </button>
         <button 
           type="button"
-          onClick={() => onApply(filters)}
+          onClick={handleApply}
           className="flex-[2] bg-[#003d9b] text-white py-4 rounded-2xl text-base font-black uppercase tracking-widest shadow-xl shadow-blue-900/30 hover:scale-[1.02] active:scale-95 transition-all"
         >
           Áp dụng bộ lọc

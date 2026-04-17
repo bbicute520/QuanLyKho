@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Inventory.Service.Data;
 using Inventory.Service.Models;
@@ -6,6 +7,7 @@ using System.ComponentModel.DataAnnotations;
 
 [Route("api/inventory/[controller]")]
 [ApiController]
+[Authorize]
 public class ProductController : ControllerBase
 {
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -89,6 +91,7 @@ public class ProductController : ControllerBase
     // POST: api/inventory/product
     // Thêm mới 1 sản phẩm
     [HttpPost]
+    [Authorize(Roles = "Admin,ThuKho")]
     public async Task<ActionResult<Product>> PostProduct(Product product)
     {
         _context.Products.Add(product);
@@ -101,6 +104,7 @@ public class ProductController : ControllerBase
     // PUT: api/inventory/product/5
     // Cập nhật thông tin sản phẩm
     [HttpPut("{id}")]
+    [Authorize(Roles = "Admin,ThuKho")]
     public async Task<IActionResult> PutProduct(int id, Product product)
     {
         if (id != product.Id)
@@ -131,6 +135,7 @@ public class ProductController : ControllerBase
 
     // DELETE: api/inventory/product/5
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin,ThuKho")]
     public async Task<IActionResult> DeleteProduct(int id)
     {
         var product = await _context.Products.FindAsync(id);
@@ -153,6 +158,7 @@ public class ProductController : ControllerBase
 
     // POST: api/inventory/product/upload
     [HttpPost("upload")]
+    [Authorize(Roles = "Admin,ThuKho")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadImage([FromForm] UploadImageRequest request)
     {

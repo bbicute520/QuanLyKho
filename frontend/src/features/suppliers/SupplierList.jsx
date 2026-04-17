@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     Search,
     Filter,
-    MoreVertical,
+    Pencil,
+    Trash2,
     ChevronLeft,
     ChevronRight,
     Loader2,
@@ -14,6 +15,16 @@ import { toast } from "sonner";
 import Modal from "../../components/ui/Modal";
 import SupplierFilterForm from "./SupplierFilterForm";
 import { supplierService } from "../../services/supplierService";
+import useAuthStore from "../../lib/authStore";
+
+const defaultSupplierForm = {
+    name: "",
+    contactPerson: "",
+    phone: "",
+    email: "",
+    address: "",
+    isActive: true,
+};
 
 // HÀM BỔ TRỢ: XÓA DẤU TIẾNG VIỆT
 const normalizeStr = (str) =>
@@ -24,17 +35,15 @@ const normalizeStr = (str) =>
 
 export default function SupplierList() {
     const queryClient = useQueryClient();
+    const role = useAuthStore((state) => state.role);
+    const canManageSuppliers = role === "Admin" || role === "ThuKho";
     const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingSupplier, setEditingSupplier] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
-    const [createForm, setCreateForm] = useState({
-        name: "",
-        contactPerson: "",
-        phone: "",
-        email: "",
-        address: "",
-        isActive: true,
-    });
+    const [createForm, setCreateForm] = useState(defaultSupplierForm);
+    const [editForm, setEditForm] = useState(defaultSupplierForm);
     const [activeFilters, setActiveFilters] = useState({
         categories: [],
         status: "Tất cả",
@@ -57,14 +66,7 @@ export default function SupplierList() {
         mutationFn: (payload) => supplierService.create(payload),
         onSuccess: () => {
             toast.success("Thêm nhà cung cấp thành công");
-            setCreateForm({
-                name: "",
-                contactPerson: "",
-                phone: "",
-                email: "",
-                address: "",
-                isActive: true,
-            });
+            setCreateForm({ ...defaultSupplierForm });
             setIsCreateModalOpen(false);
             queryClient.invalidateQueries({ queryKey: ["suppliers"] });
             queryClient.invalidateQueries({
@@ -80,12 +82,54 @@ export default function SupplierList() {
         },
     });
 
+    const updateSupplierMutation = useMutation({
+        mutationFn: ({ id, payload }) => supplierService.update(id, payload),
+        onSuccess: () => {
+            toast.success("Cập nhật nhà cung cấp thành công");
+            setIsEditModalOpen(false);
+            setEditingSupplier(null);
+            setEditForm({ ...defaultSupplierForm });
+            queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+        },
+        onError: (error) => {
+            const message =
+                error?.response?.data?.title ||
+                error?.response?.data ||
+                "Không thể cập nhật nhà cung cấp";
+            toast.error(String(message));
+        },
+    });
+
+    const deleteSupplierMutation = useMutation({
+        mutationFn: (id) => supplierService.delete(id),
+        onSuccess: () => {
+            toast.success("Xóa nhà cung cấp thành công");
+            queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+        },
+        onError: (error) => {
+            const message =
+                error?.response?.data?.title ||
+                error?.response?.data ||
+                "Không thể xóa nhà cung cấp";
+            toast.error(String(message));
+        },
+    });
+
     const handleCreateInput = (field, value) => {
         setCreateForm((prev) => ({ ...prev, [field]: value }));
     };
 
+    const handleEditInput = (field, value) => {
+        setEditForm((prev) => ({ ...prev, [field]: value }));
+    };
+
     const handleCreateSupplier = (event) => {
         event.preventDefault();
+
+        if (!canManageSuppliers) {
+            toast.warning("Bạn không có quyền thêm nhà cung cấp");
+            return;
+        }
 
         const name = createForm.name.trim();
         if (!name) {
@@ -101,6 +145,85 @@ export default function SupplierList() {
             address: createForm.address.trim() || null,
             isActive: createForm.isActive,
         });
+    };
+
+    const openCreateSupplierModal = () => {
+        if (!canManageSuppliers) {
+            toast.warning("Bạn không có quyền thêm nhà cung cấp");
+            return;
+        }
+
+        setCreateForm({ ...defaultSupplierForm });
+        setIsCreateModalOpen(true);
+    };
+
+    const openEditSupplierModal = (supplier) => {
+        if (!canManageSuppliers) {
+            toast.warning("Bạn không có quyền chỉnh sửa nhà cung cấp");
+            return;
+        }
+
+        const accepted = window.confirm(`Xác nhận chỉnh sửa nhà cung cấp: ${supplier.name}?`);
+        if (!accepted) {
+            return;
+        }
+
+        setEditingSupplier(supplier);
+        setEditForm({
+            name: supplier.name || "",
+            contactPerson: supplier.contactPerson || "",
+            phone: supplier.phone || "",
+            email: supplier.email || "",
+            address: supplier.address || "",
+            isActive: Boolean(supplier.isActive),
+        });
+        setIsEditModalOpen(true);
+    };
+
+    const handleUpdateSupplier = (event) => {
+        event.preventDefault();
+
+        if (!canManageSuppliers) {
+            toast.warning("Bạn không có quyền chỉnh sửa nhà cung cấp");
+            return;
+        }
+
+        if (!editingSupplier?.id) {
+            toast.error("Không tìm thấy nhà cung cấp cần cập nhật");
+            return;
+        }
+
+        const name = editForm.name.trim();
+        if (!name) {
+            toast.warning("Vui lòng nhập tên nhà cung cấp");
+            return;
+        }
+
+        updateSupplierMutation.mutate({
+            id: editingSupplier.id,
+            payload: {
+                name,
+                contactPerson: editForm.contactPerson.trim() || null,
+                phone: editForm.phone.trim() || null,
+                email: editForm.email.trim() || null,
+                address: editForm.address.trim() || null,
+                isActive: editForm.isActive,
+            },
+        });
+    };
+
+    const handleDeleteSupplier = (supplier) => {
+        if (!canManageSuppliers) {
+            toast.warning("Bạn không có quyền xóa nhà cung cấp");
+            return;
+        }
+
+        const accepted = window.confirm(`Xác nhận xóa nhà cung cấp: ${supplier.name}?`);
+        if (!accepted) {
+            return;
+        }
+
+        deleteSupplierMutation.mutate(supplier.id);
     };
 
     // ĐOẠN CODE ĐÃ ĐƯỢC NÂNG CẤP XÓA DẤU ĐỂ TÌM KIẾM CHUẨN XÁC
@@ -158,12 +281,14 @@ export default function SupplierList() {
                         SyncStock.
                     </p>
                 </div>
-                <button
-                    onClick={() => setIsCreateModalOpen(true)}
-                    className="inline-flex items-center gap-2 bg-[#003d9b] text-white px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-colors"
-                >
-                    <Plus size={16} /> Thêm nhà cung cấp
-                </button>
+                {canManageSuppliers && (
+                    <button
+                        onClick={openCreateSupplierModal}
+                        className="inline-flex items-center gap-2 bg-[#003d9b] text-white px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-blue-700 transition-colors"
+                    >
+                        <Plus size={16} /> Thêm nhà cung cấp
+                    </button>
+                )}
             </div>
 
             <div className="mb-8">
@@ -301,9 +426,24 @@ export default function SupplierList() {
                                             </span>
                                         </td>
                                         <td className="px-8 py-6 text-right">
-                                            <button className="p-2 text-slate-300 hover:text-slate-900 transition-colors">
-                                                <MoreVertical size={20} />
-                                            </button>
+                                            {canManageSuppliers ? (
+                                                <div className="inline-flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => openEditSupplierModal(sup)}
+                                                        className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-black uppercase"
+                                                    >
+                                                        <Pencil size={14} /> Sửa
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteSupplier(sup)}
+                                                        className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 text-xs font-black uppercase"
+                                                    >
+                                                        <Trash2 size={14} /> Xóa
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <span className="text-xs text-slate-300 font-bold">---</span>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
@@ -464,6 +604,128 @@ export default function SupplierList() {
                             {createSupplierMutation.isPending
                                 ? "Đang lưu..."
                                 : "Lưu nhà cung cấp"}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
+            <Modal
+                isOpen={isEditModalOpen}
+                onClose={() => {
+                    setIsEditModalOpen(false);
+                    setEditingSupplier(null);
+                    setEditForm({ ...defaultSupplierForm });
+                }}
+                title="Chỉnh sửa nhà cung cấp"
+            >
+                <form onSubmit={handleUpdateSupplier} className="space-y-4">
+                    <div className="space-y-2">
+                        <label className="text-xs font-black uppercase tracking-widest text-slate-500">
+                            Tên nhà cung cấp
+                        </label>
+                        <input
+                            value={editForm.name}
+                            onChange={(e) =>
+                                handleEditInput("name", e.target.value)
+                            }
+                            placeholder="Nhập tên nhà cung cấp"
+                            className="w-full h-11 px-3 border border-slate-200 rounded-lg font-semibold outline-none focus:border-blue-500"
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-xs font-black uppercase tracking-widest text-slate-500">
+                                Người liên hệ
+                            </label>
+                            <input
+                                value={editForm.contactPerson}
+                                onChange={(e) =>
+                                    handleEditInput(
+                                        "contactPerson",
+                                        e.target.value,
+                                    )
+                                }
+                                placeholder="Tên người liên hệ"
+                                className="w-full h-11 px-3 border border-slate-200 rounded-lg font-semibold outline-none focus:border-blue-500"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-black uppercase tracking-widest text-slate-500">
+                                Số điện thoại
+                            </label>
+                            <input
+                                value={editForm.phone}
+                                onChange={(e) =>
+                                    handleEditInput("phone", e.target.value)
+                                }
+                                placeholder="0900000000"
+                                className="w-full h-11 px-3 border border-slate-200 rounded-lg font-semibold outline-none focus:border-blue-500"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-xs font-black uppercase tracking-widest text-slate-500">
+                            Email
+                        </label>
+                        <input
+                            type="email"
+                            value={editForm.email}
+                            onChange={(e) =>
+                                handleEditInput("email", e.target.value)
+                            }
+                            placeholder="example@domain.com"
+                            className="w-full h-11 px-3 border border-slate-200 rounded-lg font-semibold outline-none focus:border-blue-500"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-xs font-black uppercase tracking-widest text-slate-500">
+                            Địa chỉ
+                        </label>
+                        <input
+                            value={editForm.address}
+                            onChange={(e) =>
+                                handleEditInput("address", e.target.value)
+                            }
+                            placeholder="Ví dụ: TP HCM"
+                            className="w-full h-11 px-3 border border-slate-200 rounded-lg font-semibold outline-none focus:border-blue-500"
+                        />
+                    </div>
+
+                    <label className="inline-flex items-center gap-3 text-sm font-semibold text-slate-700">
+                        <input
+                            type="checkbox"
+                            checked={editForm.isActive}
+                            onChange={(e) =>
+                                handleEditInput("isActive", e.target.checked)
+                            }
+                            className="w-4 h-4 accent-[#003d9b]"
+                        />
+                        Đánh dấu là đang hợp tác
+                    </label>
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsEditModalOpen(false);
+                                setEditingSupplier(null);
+                                setEditForm({ ...defaultSupplierForm });
+                            }}
+                            className="px-4 py-2 rounded-lg text-sm font-black uppercase text-slate-500 hover:bg-slate-100"
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={updateSupplierMutation.isPending}
+                            className="px-5 py-2 rounded-lg text-sm font-black uppercase bg-[#003d9b] text-white hover:bg-blue-700 disabled:opacity-60"
+                        >
+                            {updateSupplierMutation.isPending
+                                ? "Đang lưu..."
+                                : "Lưu thay đổi"}
                         </button>
                     </div>
                 </form>

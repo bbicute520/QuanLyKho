@@ -35,6 +35,7 @@ export default function App() {
                         <Route path="dashboard" element={<Dashboard />} />
                         <Route path="products" element={<ProductList />} />
                         <Route path="suppliers" element={<SupplierList />} />
+                        <Route path="stock-history" element={<StockInHistory />} />
                         <Route path="profile" element={<Profile />} />
 
                         {/* CÁC TRANG CỦA ADMIN & THỦ KHO */}
@@ -47,10 +48,6 @@ export default function App() {
                         >
                             <Route path="stock-in" element={<StockIn />} />
                             <Route path="stock-out" element={<StockOut />} />
-                            <Route
-                                path="stock-history"
-                                element={<StockInHistory />}
-                            />
                         </Route>
 
                         {/* TRANG CỦA ADMIN & KẾ TOÁN */}
@@ -62,10 +59,6 @@ export default function App() {
                             }
                         >
                             <Route path="reports" element={<Reports />} />
-                            <Route
-                                path="stock-history"
-                                element={<StockInHistory />}
-                            />
                         </Route>
                     </Route>
                 </Route>
