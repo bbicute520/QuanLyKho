@@ -39,7 +39,11 @@ export default function Profile() {
             
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-full">
               <Shield size={16} />
-              <span className="text-xs md:text-sm font-black uppercase tracking-widest">{role || 'Quản trị viên'}</span>
+              <span className="text-xs md:text-sm font-black uppercase tracking-widest">{{
+                                            Admin: "Quản Lý",
+                                            ThuKho: "Thủ Kho",
+                                            KeToan: "Kế Toán",
+                                        }[role] || "QUẢN LÝ"}</span>
             </div>
           </div>
         </div>

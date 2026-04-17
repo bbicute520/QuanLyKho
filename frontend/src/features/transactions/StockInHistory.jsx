@@ -1,178 +1,264 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Search, Filter, MoreVertical, ChevronLeft, ChevronRight, Loader2, History, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
-import { stockService } from '../../services/stockService';
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Search, Loader2, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { stockService } from "../../services/stockService";
+
+// IMPORT Modal và nút In của bạn (Sửa đường dẫn nếu cần)
+import Modal from "../../components/ui/Modal"; 
+import PrintActionButton from "../../components/print/PrintActionButton"; 
 
 export default function StockInHistory() {
-    // 1. State điều khiển Tab và Thanh tìm kiếm
-    const [activeTab, setActiveTab] = useState('IN'); // Mặc định mở tab Nhập kho ('IN')
-    const [searchTerm, setSearchTerm] = useState('');
+    const [activeLogType, setActiveLogType] = useState("ALL");
+    const [searchTerm, setSearchTerm] = useState("");
+    
+    // 1. Thêm state để lưu trữ dòng (giao dịch) đang được click chọn
+    const [selectedTransaction, setSelectedTransaction] = useState(null);
 
-    // 2. Lấy dữ liệu từ "Database giả"
     const { data: history = [], isLoading } = useQuery({
-        queryKey: ['stock-history'],
+        queryKey: ["stock-history"],
         queryFn: async () => {
             try {
                 const res = await stockService.getHistory();
-                const list = Array.isArray(res?.data) ? res.data : [];
-
-                return list.map((item, index) => {
-                    const rawType = String(item.type || item.transactionType || '').toUpperCase();
-                    const txType = rawType.includes('IMPORT') || rawType.includes('IN') || rawType.includes('NHAP') ? 'IN' : 'OUT';
-
-                    return {
-                        id: item.id || index,
-                        ticketCode: item.ticketCode || `TX-${item.id || index}`,
-                        partner: item.partner || item.note || 'Hệ thống',
-                        itemsCount: item.itemsCount || 1,
-                        totalValue: item.totalValue || 0,
-                        status: item.status || 'Hoàn tất',
-                        date: item.date || item.transactionDate || '',
-                        type: txType
-                    };
-                });
+                return Array.isArray(res?.data) ? res.data : [];
             } catch {
                 return [];
             }
-        }
+        },
     });
 
-    // 3. Logic Lọc dữ liệu 2 lớp: Vừa theo Tab, vừa theo chữ sếp gõ
-    const filteredHistory = history.filter(ticket => {
-        const matchTab = ticket.type === activeTab;
-        const matchSearch = ticket.ticketCode.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            (ticket.partner && ticket.partner.toLowerCase().includes(searchTerm.toLowerCase()));
+    const filteredLogs = history.filter((item) => {
+        const rawType = String(
+            item.type || item.transactionType || "",
+        ).toUpperCase();
+        const isIn =
+            rawType.includes("IMPORT") ||
+            rawType.includes("IN") ||
+            rawType.includes("NHAP");
+        const itemType = isIn ? "IN" : "OUT";
+        const matchTab = activeLogType === "ALL" || itemType === activeLogType;
+        const searchLower = searchTerm.toLowerCase();
+        const matchSearch =
+            String(item.id || "")
+                .toLowerCase()
+                .includes(searchLower) ||
+            String(item.productName || item.name || "")
+                .toLowerCase()
+                .includes(searchLower);
         return matchTab && matchSearch;
     });
 
     return (
-        <div className="max-w-7xl mx-auto not-italic">
-            {/* --- Tiêu đề trang --- */}
+        <div className="w-full not-italic">
             <div className="mb-8">
-                <h2 className="text-4xl font-black tracking-tight text-slate-900 mb-3 uppercase flex items-center gap-3">
+                <h2 className="text-4xl font-black tracking-tight text-slate-900 mb-2 uppercase">
                     Nhật ký giao dịch
                 </h2>
-                <p className="text-slate-500 text-base max-w-lg font-medium">
-                    Tra cứu và kiểm soát toàn bộ luồng hàng hóa nhập và xuất khỏi hệ thống.
+                <p className="text-slate-500 text-base font-medium">
+                    Tra cứu toàn bộ luồng hàng hóa nhập và xuất khỏi hệ thống.
                 </p>
             </div>
 
-            {/* --- HAI TAB ĐIỀU KHIỂN (NHẬP / XUẤT) --- */}
-            <div className="flex border-b border-outline-variant/20 mb-8 gap-8">
-                <button 
-                    onClick={() => setActiveTab('IN')}
-                    className={`pb-4 text-sm font-black uppercase tracking-widest transition-all relative flex items-center gap-2 ${
-                        activeTab === 'IN' ? 'text-blue-700' : 'text-slate-400 hover:text-slate-600'
-                    }`}
-                >
-                    <ArrowDownLeft size={18} /> Lịch sử Nhập kho
-                    {activeTab === 'IN' && <div className="absolute bottom-0 left-0 w-full h-1 bg-blue-700 rounded-t-full"></div>}
-                </button>
-                <button 
-                    onClick={() => setActiveTab('OUT')}
-                    className={`pb-4 text-sm font-black uppercase tracking-widest transition-all relative flex items-center gap-2 ${
-                        activeTab === 'OUT' ? 'text-orange-600' : 'text-slate-400 hover:text-slate-600'
-                    }`}
-                >
-                    <ArrowUpRight size={18} /> Lịch sử Xuất kho
-                    {activeTab === 'OUT' && <div className="absolute bottom-0 left-0 w-full h-1 bg-orange-600 rounded-t-full"></div>}
-                </button>
-            </div>
-
-            {/* --- THANH TÌM KIẾM --- */}
-            <div className="mb-8">
-                <div className="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex items-center gap-4 group focus-within:border-blue-500/50 transition-all">
-                    <div className="flex-1 flex items-center gap-3 px-4">
-                        <Search size={20} className="text-slate-400 group-focus-within:text-blue-600 transition-colors" />
-                        <input
-                            className="w-full bg-transparent border-none focus:ring-0 text-base py-2 placeholder:text-slate-400 text-slate-900 font-bold outline-none"
-                            placeholder="Tìm kiếm theo mã phiếu, tên đối tác..."
-                            type="text"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
+            <div className="bg-white p-6 md:p-8 rounded-[32px] border border-slate-200 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+                    <h3 className="text-xl font-black uppercase tracking-tight text-slate-900">
+                        Chi tiết vận hành
+                    </h3>
+                    <div className="inline-flex bg-slate-100 p-1.5 rounded-2xl">
+                        <button
+                            onClick={() => setActiveLogType("ALL")}
+                            className={`px-5 py-2.5 text-xs font-black uppercase rounded-xl transition-all ${activeLogType === "ALL" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}
+                        >
+                            Tất cả
+                        </button>
+                        <button
+                            onClick={() => setActiveLogType("IN")}
+                            className={`px-5 py-2.5 text-xs font-black uppercase rounded-xl inline-flex items-center gap-2 transition-all ${activeLogType === "IN" ? "bg-white text-blue-700 shadow-sm" : "text-slate-500"}`}
+                        >
+                            <ArrowDownLeft size={16} strokeWidth={3} /> Nhập
+                        </button>
+                        <button
+                            onClick={() => setActiveLogType("OUT")}
+                            className={`px-5 py-2.5 text-xs font-black uppercase rounded-xl inline-flex items-center gap-2 transition-all ${activeLogType === "OUT" ? "bg-white text-orange-700 shadow-sm" : "text-slate-500"}`}
+                        >
+                            <ArrowUpRight size={16} strokeWidth={3} /> Xuất
+                        </button>
                     </div>
-                    <div className="h-10 w-px bg-slate-200 hidden md:block"></div>
-                    <button className="px-6 py-3 font-black text-[10px] uppercase tracking-widest rounded-lg transition-all flex items-center gap-2 bg-slate-50 text-slate-600 hover:bg-slate-100">
-                        <Filter size={16} /> Bộ lọc
-                    </button>
                 </div>
-            </div>
 
-            {/* --- BẢNG DỮ LIỆU --- */}
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                <div className="mb-8 relative group">
+                    <Search
+                        size={22}
+                        className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors"
+                    />
+                    <input
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Tìm theo mã giao dịch hoặc tên sản phẩm..."
+                        className="w-full pl-14 pr-6 h-16 bg-slate-50 border-2 border-transparent focus:border-blue-500/20 focus:bg-white rounded-2xl text-lg font-bold text-slate-900 outline-none transition-all placeholder:text-slate-400"
+                    />
+                </div>
+
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse min-w-[800px]">
-                        <thead className="bg-slate-50/60">
-                            <tr>
-                                <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Mã phiếu</th>
-                                <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Đối tác / Chi nhánh</th>
-                                <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Mặt hàng</th>
-                                <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Tổng giá trị</th>
-                                <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Trạng thái</th>
-                                <th className="px-8 py-5"></th>
+                    <table className="w-full min-w-[900px] text-left border-separate border-spacing-y-2">
+                        <thead>
+                            <tr className="text-slate-400 uppercase tracking-[0.2em] text-[11px] font-black">
+                                <th className="px-6 py-4">Mã GD</th>
+                                <th className="px-6 py-4">Sản phẩm</th>
+                                <th className="px-6 py-4 text-center">Loại</th>
+                                <th className="px-6 py-4 text-right">
+                                    Số lượng
+                                </th>
+                                <th className="px-6 py-4">Thời gian</th>
+                                <th className="px-6 py-4 text-right">
+                                    Ghi chú
+                                </th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody>
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan="6" className="px-8 py-20 text-center">
-                                        <Loader2 className="animate-spin mx-auto text-blue-600 mb-2" size={32} />
-                                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Đang tải...</p>
-                                    </td>
-                                </tr>
-                            ) : filteredHistory.length === 0 ? (
-                                <tr>
-                                    <td colSpan="6" className="px-8 py-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
-                                        Không tìm thấy giao dịch nào phù hợp
+                                    <td
+                                        colSpan="6"
+                                        className="py-20 text-center"
+                                    >
+                                        <Loader2
+                                            className="animate-spin mx-auto text-blue-700"
+                                            size={40}
+                                        />
                                     </td>
                                 </tr>
                             ) : (
-                                filteredHistory.map((ticket) => (
-                                    <tr key={ticket.id} className="hover:bg-slate-50/50 transition-colors group">
-                                        <td className="px-8 py-6">
-                                            <div className="flex items-center gap-4">
-                                                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${activeTab === 'IN' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>
-                                                    <History size={20} strokeWidth={2.5} />
-                                                </div>
-                                                <div>
-                                                    <p className="font-black text-slate-900 text-base mb-1 uppercase tracking-tight">
-                                                        {ticket.ticketCode}
-                                                    </p>
-                                                    <p className="text-[10px] text-slate-500 font-black font-mono tracking-widest">
-                                                        {ticket.date}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-6">
-                                            <span className="font-bold text-slate-700">{ticket.partner || 'Không xác định'}</span>
-                                        </td>
-                                        <td className="px-8 py-6 text-center text-lg font-black text-slate-700">
-                                            {ticket.itemsCount}
-                                        </td>
-                                        <td className="px-8 py-6 text-right text-base font-bold text-slate-600 font-mono">
-                                            {ticket.totalValue?.toLocaleString()} đ
-                                        </td>
-                                        <td className="px-8 py-6 text-center">
-                                            <span className={`whitespace-nowrap inline-flex px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                                                ticket.status === 'Hoàn tất' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
-                                            }`}>
-                                                {ticket.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-8 py-6 text-right">
-                                            <button className="p-2 text-slate-300 hover:text-slate-900 transition-colors">
-                                                <MoreVertical size={20} />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
+                                filteredLogs.map((item, index) => {
+                                    const isIn =
+                                        String(item.type || "")
+                                            .toUpperCase()
+                                            .includes("IN") ||
+                                        String(item.type || "")
+                                            .toUpperCase()
+                                            .includes("NHAP");
+                                    return (
+                                        // 2. Thêm onClick và cursor-pointer để click được
+                                        <tr
+                                            key={index}
+                                            onClick={() => setSelectedTransaction(item)}
+                                            className="bg-white hover:bg-slate-50 transition-all group cursor-pointer"
+                                        >
+                                            <td className="px-6 py-5 font-mono font-black text-slate-400 group-hover:text-blue-700">
+                                                #{item.id}
+                                            </td>
+                                            <td className="px-6 py-5 text-lg font-black text-slate-900 uppercase tracking-tighter">
+                                                {item.productName || "-"}
+                                            </td>
+                                            <td className="px-6 py-5 text-center">
+                                                <span
+                                                    className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${isIn ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"}`}
+                                                >
+                                                    {isIn ? "Nhập" : "Xuất"}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-5 text-right text-xl font-black text-slate-900">
+                                                {item.quantity || 0}
+                                            </td>
+                                            <td className="px-6 py-5 text-sm font-bold text-slate-500">
+                                                {new Date(
+                                                    item.date || Date.now(),
+                                                ).toLocaleString("vi-VN")}
+                                            </td>
+                                            <td className="px-6 py-5 text-right text-sm font-medium text-slate-400 italic">
+                                                {item.note || "-"}
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>
                 </div>
             </div>
+
+            {/* 3. Đặt Modal ở cuối trang để hiển thị chi tiết khi click */}
+            <Modal
+                isOpen={!!selectedTransaction}
+                onClose={() => setSelectedTransaction(null)}
+                title="Chi tiết giao dịch"
+            >
+                {selectedTransaction && (
+                    <div className="p-4 flex flex-col gap-6">
+                        {/* Header của Modal */}
+                        <div className="flex justify-between items-start border-b border-slate-100 pb-6">
+                            <div>
+                                <p className="text-xs text-slate-400 uppercase font-bold tracking-widest mb-1">
+                                    Mã phiếu
+                                </p>
+                                <h3 className="text-3xl font-black text-slate-900 font-mono">
+                                    #{selectedTransaction.id}
+                                </h3>
+                                <p className="text-slate-500 mt-2 text-sm">
+                                    {new Date(selectedTransaction.date || Date.now()).toLocaleString("vi-VN")}
+                                </p>
+                            </div>
+                            
+                            <div className="flex flex-col items-end gap-3">
+                                {/* Trạng thái Nhập/Xuất */}
+                                <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+                                    String(selectedTransaction.type || "").toUpperCase().includes("IN") || 
+                                    String(selectedTransaction.type || "").toUpperCase().includes("NHAP")
+                                    ? "bg-blue-100 text-blue-700" 
+                                    : "bg-orange-100 text-orange-700"
+                                }`}>
+                                    {String(selectedTransaction.type || "").toUpperCase().includes("IN") || 
+                                     String(selectedTransaction.type || "").toUpperCase().includes("NHAP") 
+                                     ? "NHẬP KHO" : "XUẤT KHO"}
+                                </span>
+
+                                {/* NÚT IN MÀ BẠN CẦN LÀ Ở ĐÂY */}
+                                <PrintActionButton 
+                                    ticketData={{
+                                        code: selectedTransaction.id,
+                                        date: new Date(selectedTransaction.date || Date.now()).toLocaleDateString("vi-VN"),
+                                        partnerName: selectedTransaction.partnerName || "Không có",
+                                        reason: selectedTransaction.note || "Hệ thống ghi nhận",
+                                        // Vì bảng lịch sử hiện theo từng dòng SP, ta gói nó vào array items để in
+                                        items: [{
+                                            sku: selectedTransaction.productId, 
+                                            name: selectedTransaction.productName,
+                                            quantity: selectedTransaction.quantity
+                                        }]
+                                    }} 
+                                    type={String(selectedTransaction.type || "").toUpperCase().includes("IN") || 
+                                          String(selectedTransaction.type || "").toUpperCase().includes("NHAP") ? "IN" : "OUT"}
+                                    // CSS tùy chỉnh cho cục nút bấm in trong modal
+                                    className="bg-slate-100 hover:bg-blue-600 hover:text-white rounded-lg transition-colors p-2"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Nội dung chính trong Modal */}
+                        <div className="bg-slate-50 rounded-2xl p-6 space-y-5">
+                            <div>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Sản phẩm</p>
+                                <p className="text-xl font-black text-slate-900 uppercase">
+                                    {selectedTransaction.productName || "-"}
+                                </p>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Số lượng</p>
+                                    <p className="text-2xl font-black text-slate-900">
+                                        {selectedTransaction.quantity || 0}
+                                    </p>
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Ghi chú</p>
+                                <p className="text-base font-medium text-slate-700 italic">
+                                    {selectedTransaction.note || "Không có ghi chú thêm."}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 }

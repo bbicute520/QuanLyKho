@@ -9,42 +9,68 @@ import StockInHistory from "./features/transactions/StockInHistory";
 import StockOut from "./features/transactions/StockOut";
 import Profile from "./features/account/Profile";
 
-// 1. IMPORT TRANG LOGIN
 import Login from "./features/auth/Login";
-
-// 2. IMPORT ÔNG BẢO VỆ (KIỂM TRA ĐĂNG NHẬP)
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 export default function App() {
     return (
         <BrowserRouter>
             <Routes>
-                {/* TRANG LOGIN: Ai cũng vào được */}
                 <Route path="/login" element={<Login />} />
 
-                {/* CỤM TRANG NỘI BỘ: Phải đi qua ProtectedRoute mới được vào */}
-                <Route element={<ProtectedRoute />}>
+                <Route
+                    element={
+                        <ProtectedRoute
+                            allowedRoles={["Admin", "ThuKho", "KeToan"]}
+                        />
+                    }
+                >
                     <Route path="/" element={<DashboardLayout />}>
                         <Route
                             index
                             element={<Navigate to="/dashboard" replace />}
                         />
+
+                        {/* CÁC TRANG DÙNG CHUNG */}
                         <Route path="dashboard" element={<Dashboard />} />
                         <Route path="products" element={<ProductList />} />
-                        <Route path="stock-in" element={<StockIn />} />
-                        <Route path="stock-out" element={<StockOut />} />
                         <Route path="suppliers" element={<SupplierList />} />
-                        <Route path="stock-history" element={<StockInHistory />} />
-                        <Route path="reports" element={<Reports />} />
                         <Route path="profile" element={<Profile />} />
+
+                        {/* CÁC TRANG CỦA ADMIN & THỦ KHO */}
+                        <Route
+                            element={
+                                <ProtectedRoute
+                                    allowedRoles={["Admin", "ThuKho"]}
+                                />
+                            }
+                        >
+                            <Route path="stock-in" element={<StockIn />} />
+                            <Route path="stock-out" element={<StockOut />} />
+                            <Route
+                                path="stock-history"
+                                element={<StockInHistory />}
+                            />
+                        </Route>
+
+                        {/* TRANG CỦA ADMIN & KẾ TOÁN */}
+                        <Route
+                            element={
+                                <ProtectedRoute
+                                    allowedRoles={["Admin", "KeToan"]}
+                                />
+                            }
+                        >
+                            <Route path="reports" element={<Reports />} />
+                            <Route
+                                path="stock-history"
+                                element={<StockInHistory />}
+                            />
+                        </Route>
                     </Route>
                 </Route>
 
-                {/* REDIRECT: Nếu nhập sai URL thì về login */}
-                <Route
-                    path="*"
-                    element={<Navigate to="/login" replace />}
-                />
+                <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
         </BrowserRouter>
     );

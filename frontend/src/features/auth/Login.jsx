@@ -169,7 +169,6 @@ export default function Login() {
                   <input className="peer h-4 w-4 rounded border-slate-300 text-[#003d9b] focus:ring-[#003d9b]/20 transition-all cursor-pointer" type="checkbox" />
                   <span className="ml-3 text-xs text-slate-500 font-bold uppercase tracking-widest group-hover:text-slate-800 transition-colors">Ghi nhớ</span>
                 </label>
-                <a className="text-xs font-black text-[#003d9b] uppercase tracking-widest hover:opacity-80 transition-colors" href="#">Quên mật khẩu?</a>
               </div>
 
               <button
@@ -193,3 +192,55 @@ export default function Login() {
     </div>
   );
 }
+
+// import React from "react";
+// import { useNavigate } from "react-router-dom";
+// import useAuthStore from "../../lib/authStore"; // Import store của sếp vào
+
+// export default function Login() {
+//     const navigate = useNavigate();
+
+//     // Lấy hàm setAuth từ Zustand
+//     const setAuth = useAuthStore((state) => state.setAuth);
+
+//     // HÀM "HACK" ĐĂNG NHẬP NHANH
+//     const handleQuickLogin = (role) => {
+//         // Truyền token giả, role sếp muốn test, và thông tin user ảo
+//         setAuth("fake-token-12345", role, { name: "Người dùng Test" });
+
+//         // Đá về trang chủ, App.jsx sẽ tự động điều hướng theo Role
+//         navigate("/");
+//     };
+
+//     return (
+//         <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
+//             {/* Form Login cũ của sếp cứ giữ nguyên ở trên này... */}
+
+//             <div className="mt-10 p-6 bg-white rounded-xl shadow-sm border border-slate-200">
+//                 <p className="text-sm font-black text-slate-500 uppercase mb-4 text-center">
+//                     Khu vực Test Role nhanh (Dành cho Dev)
+//                 </p>
+//                 <div className="flex gap-4">
+//                     <button
+//                         onClick={() => handleQuickLogin("Admin")}
+//                         className="px-4 py-2 bg-slate-900 text-white rounded-lg font-bold text-sm"
+//                     >
+//                         Vào vai ADMIN
+//                     </button>
+//                     <button
+//                         onClick={() => handleQuickLogin("ThuKho")}
+//                         className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm"
+//                     >
+//                         Vào vai THỦ KHO
+//                     </button>
+//                     <button
+//                         onClick={() => handleQuickLogin("KeToan")}
+//                         className="px-4 py-2 bg-orange-600 text-white rounded-lg font-bold text-sm"
+//                     >
+//                         Vào vai KẾ TOÁN
+//                     </button>
+//                 </div>
+//             </div>
+//         </div>
+//     );
+// }
