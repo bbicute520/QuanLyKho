@@ -14,7 +14,7 @@ export const stockService = {
 
     // 3. Tạo phiếu xuất kho - Endpoint: /api/inventory/export
     createOutwardTicket: async (ticketData) => {
-        // Payload: { note, items: [{productId, quantity}] }
+        // Payload: { note, items: [{productId, quantity, price}] }
         return await axiosInstance.post('/inventory/export', ticketData);
     },
 

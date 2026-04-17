@@ -10,6 +10,20 @@ import { productService } from "../../services/productService";
 import { supplierService } from "../../services/supplierService";
 import PrintTicketModal from "./PrintTicketModal";
 
+const generateTicketCode = (prefix) => {
+    const now = new Date();
+    const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+    const timePart = `${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
+    const randomPart = Math.floor(100 + Math.random() * 900);
+    return `${prefix}-${datePart}${timePart}-${randomPart}`;
+};
+
+const getTodayDateString = () => {
+    const now = new Date();
+    const localNow = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+    return localNow.toISOString().split("T")[0];
+};
+
 export default function StockIn() {
     const queryClient = useQueryClient();
     const DRAFT_KEY = "stock-in-draft-v1";
@@ -17,9 +31,9 @@ export default function StockIn() {
     const [items, setItems] = useState([]);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [supplier, setSupplier] = useState("");
-    const [importDate, setImportDate] = useState("");
+    const [importDate, setImportDate] = useState(() => getTodayDateString());
     const [note, setNote] = useState("");
-    const [ticketCode, setTicketCode] = useState(""); // Thêm state cho mã phiếu nhập
+    const [ticketCode, setTicketCode] = useState(() => generateTicketCode("PN"));
     const [printData, setPrintData] = useState(null);
 
     useEffect(() => {
@@ -30,11 +44,12 @@ export default function StockIn() {
             const draft = JSON.parse(rawDraft);
             setItems(Array.isArray(draft.items) ? draft.items : []);
             setSupplier(draft.supplier || "");
-            setImportDate(draft.importDate || "");
+            setImportDate(getTodayDateString());
             setNote(draft.note || "");
-            setTicketCode(draft.ticketCode || ""); // Tải mã phiếu từ bản nháp
+            setTicketCode(draft.ticketCode || generateTicketCode("PN"));
         } catch {
             localStorage.removeItem(DRAFT_KEY);
+            setImportDate(getTodayDateString());
         }
     }, []);
 
@@ -105,14 +120,14 @@ export default function StockIn() {
 
     const createTicketMutation = useMutation({
         mutationFn: (newTicket) => stockService.createInwardTicket(newTicket),
-        onSuccess: () => {
+        onSuccess: (_, variables) => {
             toast.success("Lưu phiếu nhập kho thành công");
 
             const selectedSupplier = suppliers.find(s => s.id === Number(supplier));
 
             // Lưu dữ liệu vào state để gọi Modal in
             setPrintData({
-                code: variables.code,
+                code: variables?.code || ticketCode,
                 date: importDate,
                 partnerName: selectedSupplier ? selectedSupplier.name : 'Không rõ',
                 reason: note,
@@ -121,9 +136,9 @@ export default function StockIn() {
 
             setItems([]);
             setSupplier("");
-            setImportDate("");
+            setImportDate(getTodayDateString());
             setNote("");
-            setTicketCode(""); // Reset state mã phiếu nhập
+            setTicketCode(generateTicketCode("PN"));
             localStorage.removeItem(DRAFT_KEY);
             queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
             queryClient.invalidateQueries({ queryKey: ["stock-history"] });
@@ -136,9 +151,9 @@ export default function StockIn() {
     });
 
     const handleSubmit = () => {
+        const codeForSubmit = ticketCode.trim() || generateTicketCode("PN");
         if (!ticketCode.trim()) {
-            toast.warning("Vui lòng nhập mã phiếu nhập");
-            return;
+            setTicketCode(codeForSubmit);
         }
 
         if (!supplier) {
@@ -157,7 +172,7 @@ export default function StockIn() {
         }));
 
         createTicketMutation.mutate({
-            code: ticketCode, // Gửi mã đơn nhập kho
+            code: codeForSubmit,
             supplierId: Number(supplier),
             note,
             items: formattedItems,
@@ -178,9 +193,9 @@ export default function StockIn() {
 
         setItems([]);
         setSupplier("");
-        setImportDate("");
+        setImportDate(getTodayDateString());
         setNote("");
-        setTicketCode(""); // Reset mã phiếu nhập
+        setTicketCode(generateTicketCode("PN"));
         localStorage.removeItem(DRAFT_KEY);
         toast.info("Đã hủy thao tác nhập kho");
     };
@@ -215,11 +230,9 @@ export default function StockIn() {
                                 </Label>
                                 <Input
                                     id="ma-nhap"
-                                    placeholder="Nhập mã đơn (VD: PN-001)..."
+                                    placeholder="Mã phiếu được tạo tự động"
                                     value={ticketCode}
-                                    onChange={(e) =>
-                                        setTicketCode(e.target.value)
-                                    }
+                                    readOnly
                                     className="bg-surface-container-low border-outline-variant/30 focus-visible:ring-primary font-mono text-base h-12 shadow-sm"
                                 />
                             </div>
@@ -264,10 +277,9 @@ export default function StockIn() {
                                     id="ngay-nhap"
                                     type="date"
                                     value={importDate}
-                                    onChange={(e) =>
-                                        setImportDate(e.target.value)
-                                    }
-                                    className="bg-surface-container-low border-outline-variant/30 focus-visible:ring-primary text-base h-12 shadow-sm block"
+                                    readOnly
+                                    disabled
+                                    className="bg-slate-100 border-outline-variant/30 text-base h-12 shadow-sm block cursor-not-allowed"
                                 />
                             </div>
                             <div className="space-y-2.5">

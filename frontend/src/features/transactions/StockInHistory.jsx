@@ -7,6 +7,18 @@ import { stockService } from "../../services/stockService";
 import Modal from "../../components/ui/Modal"; 
 import PrintActionButton from "../../components/print/PrintActionButton"; 
 
+const resolveTransactionType = (item) =>
+    String(item?.type || item?.transactionType || "").toUpperCase();
+
+const isImportTransaction = (item) => {
+    const transactionType = resolveTransactionType(item);
+    return (
+        transactionType.includes("IMPORT") ||
+        transactionType === "IN" ||
+        transactionType.includes("NHAP")
+    );
+};
+
 export default function StockInHistory() {
     const [activeLogType, setActiveLogType] = useState("ALL");
     const [searchTerm, setSearchTerm] = useState("");
@@ -27,13 +39,7 @@ export default function StockInHistory() {
     });
 
     const filteredLogs = history.filter((item) => {
-        const rawType = String(
-            item.type || item.transactionType || "",
-        ).toUpperCase();
-        const isIn =
-            rawType.includes("IMPORT") ||
-            rawType.includes("IN") ||
-            rawType.includes("NHAP");
+        const isIn = isImportTransaction(item);
         const itemType = isIn ? "IN" : "OUT";
         const matchTab = activeLogType === "ALL" || itemType === activeLogType;
         const searchLower = searchTerm.toLowerCase();
@@ -129,13 +135,7 @@ export default function StockInHistory() {
                                 </tr>
                             ) : (
                                 filteredLogs.map((item, index) => {
-                                    const isIn =
-                                        String(item.type || "")
-                                            .toUpperCase()
-                                            .includes("IN") ||
-                                        String(item.type || "")
-                                            .toUpperCase()
-                                            .includes("NHAP");
+                                    const isIn = isImportTransaction(item);
                                     return (
                                         // 2. Thêm onClick và cursor-pointer để click được
                                         <tr
@@ -161,7 +161,7 @@ export default function StockInHistory() {
                                             </td>
                                             <td className="px-6 py-5 text-sm font-bold text-slate-500">
                                                 {new Date(
-                                                    item.date || Date.now(),
+                                                    item.date || item.transactionDate || Date.now(),
                                                 ).toLocaleString("vi-VN")}
                                             </td>
                                             <td className="px-6 py-5 text-right text-sm font-medium text-slate-400 italic">
@@ -201,13 +201,11 @@ export default function StockInHistory() {
                             <div className="flex flex-col items-end gap-3">
                                 {/* Trạng thái Nhập/Xuất */}
                                 <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
-                                    String(selectedTransaction.type || "").toUpperCase().includes("IN") || 
-                                    String(selectedTransaction.type || "").toUpperCase().includes("NHAP")
+                                    isImportTransaction(selectedTransaction)
                                     ? "bg-blue-100 text-blue-700" 
                                     : "bg-orange-100 text-orange-700"
                                 }`}>
-                                    {String(selectedTransaction.type || "").toUpperCase().includes("IN") || 
-                                     String(selectedTransaction.type || "").toUpperCase().includes("NHAP") 
+                                    {isImportTransaction(selectedTransaction)
                                      ? "NHẬP KHO" : "XUẤT KHO"}
                                 </span>
 
@@ -225,8 +223,7 @@ export default function StockInHistory() {
                                             quantity: selectedTransaction.quantity
                                         }]
                                     }} 
-                                    type={String(selectedTransaction.type || "").toUpperCase().includes("IN") || 
-                                          String(selectedTransaction.type || "").toUpperCase().includes("NHAP") ? "IN" : "OUT"}
+                                    type={isImportTransaction(selectedTransaction) ? "IN" : "OUT"}
                                     // CSS tùy chỉnh cho cục nút bấm in trong modal
                                     className="bg-slate-100 hover:bg-blue-600 hover:text-white rounded-lg transition-colors p-2"
                                 />

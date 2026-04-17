@@ -380,8 +380,7 @@ frontend/.env.*
 .DS_Store
 Thumbs.db
 
-# Local planning documents and temporary extracted content
-.tmp_docx/
-KeHoach_TungThanhVien.docx
-TV2*.docx
-YeuCauBaiTapLonLTWeb.pdf
+# Local assignment documents at repository root
+/.tmp_docx/
+/*.docx
+/*.pdf

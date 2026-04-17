@@ -9,6 +9,20 @@ import { stockService } from "../../services/stockService";
 import { productService } from "../../services/productService";
 import PrintTicketModal from "./PrintTicketModal";
 
+const generateTicketCode = (prefix) => {
+    const now = new Date();
+    const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+    const timePart = `${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
+    const randomPart = Math.floor(100 + Math.random() * 900);
+    return `${prefix}-${datePart}${timePart}-${randomPart}`;
+};
+
+const getTodayDateString = () => {
+    const now = new Date();
+    const localNow = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+    return localNow.toISOString().split("T")[0];
+};
+
 export default function StockOut() {
     const queryClient = useQueryClient();
     const DRAFT_KEY = "stock-out-draft-v1";
@@ -16,9 +30,9 @@ export default function StockOut() {
     const [items, setItems] = useState([]);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [customer, setCustomer] = useState("");
-    const [exportDate, setExportDate] = useState("");
+    const [exportDate, setExportDate] = useState(() => getTodayDateString());
     const [note, setNote] = useState("");
-    const [ticketCode, setTicketCode] = useState("");
+    const [ticketCode, setTicketCode] = useState(() => generateTicketCode("PX"));
     const [printData, setPrintData] = useState(null);
 
     useEffect(() => {
@@ -29,11 +43,12 @@ export default function StockOut() {
             const draft = JSON.parse(rawDraft);
             setItems(Array.isArray(draft.items) ? draft.items : []);
             setCustomer(draft.customer || "");
-            setExportDate(draft.exportDate || "");
+            setExportDate(getTodayDateString());
             setNote(draft.note || "");
-            setTicketCode(draft.ticketCode || "");
+            setTicketCode(draft.ticketCode || generateTicketCode("PX"));
         } catch {
             localStorage.removeItem(DRAFT_KEY);
+            setExportDate(getTodayDateString());
         }
     }, []);
 
@@ -52,9 +67,9 @@ export default function StockOut() {
 
         setItems([]);
         setCustomer("");
-        setExportDate("");
+        setExportDate(getTodayDateString());
         setNote("");
-        setTicketCode(""); // Reset mã đơn
+        setTicketCode(generateTicketCode("PX"));
         localStorage.removeItem(DRAFT_KEY);
         toast.info("Đã hủy thao tác xuất kho");
     };
@@ -86,6 +101,7 @@ export default function StockOut() {
                 return;
             }
             newItems[existingItemIndex].quantity = newQty;
+            newItems[existingItemIndex].exportPrice = data.exportPrice;
             setItems(newItems);
         } else {
             setItems([...items, { ...data, tempId: Date.now() }]);
@@ -112,13 +128,29 @@ export default function StockOut() {
         setItems(items.filter((item) => item.tempId !== id));
     };
 
+    const updateExportPrice = (id, newPrice) => {
+        setItems(
+            items.map((item) => {
+                if (item.tempId === id) {
+                    return { ...item, exportPrice: Math.max(0, newPrice) };
+                }
+                return item;
+            }),
+        );
+    };
+
+    const totalInvoice = items.reduce(
+        (sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.exportPrice) || 0),
+        0,
+    );
+
     const createTicketMutation = useMutation({
         mutationFn: (newTicket) => stockService.createOutwardTicket(newTicket),
-        onSuccess: () => {
+        onSuccess: (_, variables) => {
             toast.success("Lưu phiếu xuất kho thành công");
 
             setPrintData({
-                code: variables.code,
+                code: variables?.code || ticketCode,
                 date: exportDate,
                 partnerName: customer,
                 reason: note,
@@ -127,9 +159,9 @@ export default function StockOut() {
 
             setItems([]);
             setCustomer("");
-            setExportDate("");
+            setExportDate(getTodayDateString());
             setNote("");
-            setTicketCode("");
+            setTicketCode(generateTicketCode("PX"));
             localStorage.removeItem(DRAFT_KEY);
             queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
             queryClient.invalidateQueries({ queryKey: ["stock-history"] });
@@ -152,19 +184,20 @@ export default function StockOut() {
             return;
         }
 
+        const codeForSubmit = ticketCode.trim() || generateTicketCode("PX");
         if (!ticketCode.trim()) {
-            toast.warning("Vui lòng nhập mã đơn xuất");
-            return;
+            setTicketCode(codeForSubmit);
         }
 
         const formattedItems = items.map((item) => ({
             productId: item.productId,
             quantity: item.quantity,
+            price: Math.max(0, Number(item.exportPrice) || 0),
         }));
 
         // Gọi mutation 1 lần duy nhất với đầy đủ dữ liệu
         createTicketMutation.mutate({
-            code: ticketCode,
+            code: codeForSubmit,
             reason: note,
             items: formattedItems,
         });
@@ -200,11 +233,9 @@ export default function StockOut() {
                                 </Label>
                                 <Input
                                     id="ma-xuat"
-                                    placeholder="Nhập mã đơn (VD: PX-001)..."
+                                    placeholder="Mã phiếu được tạo tự động"
                                     value={ticketCode}
-                                    onChange={(e) =>
-                                        setTicketCode(e.target.value)
-                                    }
+                                    readOnly
                                     className="bg-surface-container-low border-outline-variant/30 focus-visible:ring-primary font-mono text-base h-12 shadow-sm"
                                 />
                             </div>
@@ -236,10 +267,9 @@ export default function StockOut() {
                                     id="ngay-xuat"
                                     type="date"
                                     value={exportDate}
-                                    onChange={(e) =>
-                                        setExportDate(e.target.value)
-                                    }
-                                    className="bg-surface-container-low border-outline-variant/30 focus-visible:ring-primary text-base h-12 shadow-sm block"
+                                    readOnly
+                                    disabled
+                                    className="bg-slate-100 border-outline-variant/30 text-base h-12 shadow-sm block cursor-not-allowed"
                                 />
                             </div>
                             <div className="space-y-2.5">
@@ -268,13 +298,10 @@ export default function StockOut() {
                             </span>
                         </div>
                         <p className="text-xs font-bold uppercase tracking-widest opacity-80 mb-2">
-                            Tổng sản phẩm xuất
+                            Tổng giá trị xuất kho
                         </p>
-                        <h4 className="text-5xl font-black mb-6">
-                            {items.length}{" "}
-                            <span className="text-xl font-medium opacity-60">
-                                Mã hàng
-                            </span>
+                        <h4 className="text-4xl font-black mb-6 truncate">
+                            {totalInvoice.toLocaleString()} <span className="text-xl font-medium opacity-60">đ</span>
                         </h4>
                         <div className="flex items-center gap-2 text-sm bg-white/10 w-fit px-4 py-2 rounded-full backdrop-blur-md">
                             <span className="material-symbols-outlined text-sm">
@@ -321,6 +348,12 @@ export default function StockOut() {
                                         <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-center">
                                             Số lượng xuất
                                         </th>
+                                        <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">
+                                            Đơn giá
+                                        </th>
+                                        <th className="px-8 py-5 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">
+                                            Thành tiền
+                                        </th>
                                         <th className="px-8 py-5"></th>
                                     </tr>
                                 </thead>
@@ -328,7 +361,7 @@ export default function StockOut() {
                                     {items.length === 0 ? (
                                         <tr>
                                             <td
-                                                colSpan="5"
+                                                colSpan="7"
                                                 className="px-8 py-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs"
                                             >
                                                 Chưa có sản phẩm nào trong phiếu
@@ -375,6 +408,26 @@ export default function StockOut() {
                                                         }
                                                         className="w-24 h-10 mx-auto text-center bg-surface-container-low border-outline-variant/30 focus-visible:ring-primary font-bold text-base shadow-sm"
                                                     />
+                                                </td>
+                                                <td className="px-8 py-6 text-right">
+                                                    <Input
+                                                        type="number"
+                                                        min="0"
+                                                        value={item.exportPrice || 0}
+                                                        onChange={(e) =>
+                                                            updateExportPrice(
+                                                                item.tempId,
+                                                                parseInt(e.target.value, 10) || 0,
+                                                            )
+                                                        }
+                                                        className="w-32 h-10 ml-auto text-right bg-surface-container-low border-outline-variant/30 focus-visible:ring-primary font-medium text-slate-700 text-base shadow-sm"
+                                                    />
+                                                </td>
+                                                <td className="px-8 py-6 text-right font-bold text-primary whitespace-nowrap">
+                                                    {(
+                                                        (Number(item.quantity) || 0) *
+                                                        (Number(item.exportPrice) || 0)
+                                                    ).toLocaleString()} đ
                                                 </td>
                                                 <td className="px-8 py-6 text-right">
                                                     <button

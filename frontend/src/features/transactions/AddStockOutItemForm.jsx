@@ -5,6 +5,7 @@ export default function AddStockOutItemForm({ products = [], isLoading, onAdd, o
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [quantity, setQuantity] = useState(1);
+    const [exportPrice, setExportPrice] = useState(0);
 
     const filteredProducts = useMemo(() => {
         if (!Array.isArray(products)) return [];
@@ -20,6 +21,7 @@ export default function AddStockOutItemForm({ products = [], isLoading, onAdd, o
         if ((product.stock || 0) === 0) return;
         setSelectedProduct(product);
         setQuantity(1);
+        setExportPrice(0);
     };
 
     const handleSubmit = () => {
@@ -32,7 +34,8 @@ export default function AddStockOutItemForm({ products = [], isLoading, onAdd, o
             name: selectedProduct.name,
             category: selectedProduct.category,
             currentStock: selectedProduct.stock,
-            quantity
+            quantity,
+            exportPrice: Math.max(0, exportPrice)
         });
     };
 
@@ -89,19 +92,37 @@ export default function AddStockOutItemForm({ products = [], isLoading, onAdd, o
 
             {selectedProduct && (
                 <div className="pt-6 border-t border-slate-100">
-                    <p className="text-sm font-black uppercase tracking-widest text-[#003d9b] mb-3">Số lượng xuất</p>
-                    <div className="grid grid-cols-2 gap-4">
-                        <input
-                            type="number"
-                            min="1"
-                            max={selectedProduct.stock}
-                            value={quantity}
-                            onChange={(e) => setQuantity(parseInt(e.target.value, 10) || 1)}
-                            className="w-full h-16 bg-white border border-slate-200 rounded-xl text-2xl font-black text-[#003d9b] text-center"
-                        />
+                    <p className="text-sm font-black uppercase tracking-widest text-[#003d9b] mb-3">Thông tin xuất kho</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Số lượng xuất</p>
+                            <input
+                                type="number"
+                                min="1"
+                                max={selectedProduct.stock}
+                                value={quantity}
+                                onChange={(e) => setQuantity(parseInt(e.target.value, 10) || 1)}
+                                className="w-full h-16 bg-white border border-slate-200 rounded-xl text-2xl font-black text-[#003d9b] text-center"
+                            />
+                        </div>
+                        <div>
+                            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Đơn giá xuất (đ)</p>
+                            <input
+                                type="number"
+                                min="0"
+                                value={exportPrice}
+                                onChange={(e) => setExportPrice(parseInt(e.target.value, 10) || 0)}
+                                className="w-full h-16 bg-white border border-slate-200 rounded-xl text-2xl font-black text-[#003d9b] text-center"
+                            />
+                        </div>
                         <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col justify-center">
-                            <p className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-1">Tồn sau xuất</p>
-                            <p className="text-2xl font-black text-slate-900">{Math.max(0, selectedProduct.stock - quantity)}</p>
+                            <p className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-1">Thành tiền</p>
+                            <p className="text-2xl font-black text-slate-900">
+                                {(Math.max(1, quantity) * Math.max(0, exportPrice)).toLocaleString()} đ
+                            </p>
+                            <p className="text-xs font-semibold text-slate-500 mt-2">
+                                Tồn sau xuất: {Math.max(0, selectedProduct.stock - quantity)}
+                            </p>
                         </div>
                     </div>
                 </div>
