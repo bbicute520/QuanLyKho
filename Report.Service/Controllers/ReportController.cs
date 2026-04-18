@@ -36,6 +36,16 @@ public sealed class ReportController : ControllerBase
         return null;
     }
 
+    private static bool HasInvalidDateRange(DateTime? from, DateTime? to)
+    {
+        if (!from.HasValue || !to.HasValue)
+        {
+            return false;
+        }
+
+        return from.Value.Date > to.Value.Date;
+    }
+
     [HttpGet("stock")]
     public async Task<IActionResult> GetStockReport(CancellationToken cancellationToken)
     {
@@ -62,6 +72,11 @@ public sealed class ReportController : ControllerBase
         [FromQuery] int limit = 200,
         CancellationToken cancellationToken = default)
     {
+        if (HasInvalidDateRange(from, to))
+        {
+            return BadRequest("Khoảng ngày không hợp lệ: from không được lớn hơn to.");
+        }
+
         var bearerToken = ResolveBearerToken();
         var history = await _inventoryReportClient.GetHistoryAsync(limit, bearerToken, cancellationToken);
         var filtered = FilterTransactions(history, from, to, type)
@@ -69,6 +84,76 @@ public sealed class ReportController : ControllerBase
             .ToList();
 
         return Ok(filtered);
+    }
+
+    [HttpGet("business")]
+    public async Task<IActionResult> GetBusinessReport(
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] int top = 10,
+        CancellationToken cancellationToken = default)
+    {
+        if (HasInvalidDateRange(from, to))
+        {
+            return BadRequest("Khoảng ngày không hợp lệ: from không được lớn hơn to.");
+        }
+
+        var safeTop = Math.Clamp(top, 1, 20);
+        var bearerToken = ResolveBearerToken();
+        var history = await _inventoryReportClient.GetHistoryAsync(5000, bearerToken, cancellationToken);
+        var filtered = FilterTransactions(history, from, to, null).ToList();
+
+        var importTransactions = filtered
+            .Where(item => ResolveTransactionType(item).Contains("IMPORT", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var exportTransactions = filtered
+            .Where(item => ResolveTransactionType(item).Contains("EXPORT", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var totalCost = importTransactions.Sum(item => ResolveTransactionAmount(item));
+        var totalRevenue = exportTransactions.Sum(item => ResolveTransactionAmount(item));
+        var grossProfit = totalRevenue - totalCost;
+
+        var topSellingProducts = exportTransactions
+            .GroupBy(item => new { item.ProductId, item.ProductName })
+            .Select(group => new
+            {
+                productId = group.Key.ProductId,
+                productName = group.Key.ProductName,
+                totalQuantity = group.Sum(item => item.Quantity),
+                totalRevenue = group.Sum(item => ResolveTransactionAmount(item))
+            })
+            .OrderByDescending(item => item.totalQuantity)
+            .ThenByDescending(item => item.totalRevenue)
+            .Take(safeTop)
+            .ToList();
+
+        var payload = new
+        {
+            generatedAt = DateTime.UtcNow,
+            period = new
+            {
+                from,
+                to
+            },
+            summary = new
+            {
+                totalRevenue,
+                totalCost,
+                grossProfit,
+                totalImportTransactions = importTransactions.Count,
+                totalExportTransactions = exportTransactions.Count
+            },
+            topSellingProducts,
+            transactions = new
+            {
+                imports = importTransactions.Count,
+                exports = exportTransactions.Count,
+                total = filtered.Count
+            }
+        };
+
+        return Ok(payload);
     }
 
     [HttpGet("export/excel")]
@@ -79,6 +164,11 @@ public sealed class ReportController : ControllerBase
         [FromQuery] string? format,
         CancellationToken cancellationToken)
     {
+        if (HasInvalidDateRange(from, to))
+        {
+            return BadRequest("Khoảng ngày không hợp lệ: from không được lớn hơn to.");
+        }
+
         var bearerToken = ResolveBearerToken();
         var normalizedFormat = string.IsNullOrWhiteSpace(format) ? "xlsx" : format.Trim().ToLowerInvariant();
         if (normalizedFormat is not ("xlsx" or "csv"))
@@ -172,6 +262,21 @@ public sealed class ReportController : ControllerBase
         }
 
         return item.TransactionDate;
+    }
+
+    private static decimal ResolveTransactionAmount(StockTransactionDto item)
+    {
+        if (item.TotalAmount > 0)
+        {
+            return item.TotalAmount;
+        }
+
+        if (item.UnitPrice <= 0 || item.Quantity <= 0)
+        {
+            return 0;
+        }
+
+        return item.UnitPrice * item.Quantity;
     }
 
     private static string BuildInventoryCsv(IEnumerable<InventoryStockDto> rows)

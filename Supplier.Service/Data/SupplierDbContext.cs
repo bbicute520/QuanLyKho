@@ -16,6 +16,14 @@ namespace Supplier.Service.Data
             base.OnModelCreating(modelBuilder);
 
             modelBuilder.Entity<SupplierInfo>()
+                .Property(x => x.TotalImportValue)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<SupplierInfo>()
+                .Property(x => x.ReliabilityScore)
+                .HasPrecision(18, 2);
+
+            modelBuilder.Entity<SupplierInfo>()
                 .HasIndex(x => x.Name);
 
             modelBuilder.Entity<SupplierInfo>().HasData(

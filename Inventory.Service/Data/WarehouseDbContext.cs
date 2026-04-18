@@ -18,6 +18,10 @@ namespace Inventory.Service.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            modelBuilder.Entity<StockTransaction>()
+                .Property(x => x.UnitPrice)
+                .HasPrecision(18, 2);
+
             // Seed data cho Category
             modelBuilder.Entity<Category>().HasData(
                 new Category { Id = 1, Name = "Điện tử" },

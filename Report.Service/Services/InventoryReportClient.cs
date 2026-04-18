@@ -46,7 +46,7 @@ public sealed class InventoryReportClient
 
     public async Task<List<StockTransactionDto>> GetHistoryAsync(int limit = 500, string? bearerToken = null, CancellationToken cancellationToken = default)
     {
-        var safeLimit = Math.Clamp(limit, 1, 500);
+        var safeLimit = Math.Clamp(limit, 1, 5000);
         using var request = new HttpRequestMessage(HttpMethod.Get, $"api/inventory/history?limit={safeLimit}");
         ApplyAuthorizationHeader(request, bearerToken);
 

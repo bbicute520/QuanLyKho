@@ -33,6 +33,8 @@ const normalizeStr = (str) =>
         .replace(/[\u0300-\u036f]/g, "")
         .toLowerCase();
 
+const phonePattern = /^(0\d{9}|\+84\d{9})$/;
+
 export default function SupplierList() {
     const queryClient = useQueryClient();
     const role = useAuthStore((state) => state.role);
@@ -132,15 +134,26 @@ export default function SupplierList() {
         }
 
         const name = createForm.name.trim();
+        const phone = createForm.phone.trim();
         if (!name) {
             toast.warning("Vui lòng nhập tên nhà cung cấp");
+            return;
+        }
+
+        if (!phone) {
+            toast.warning("Vui lòng nhập số điện thoại nhà cung cấp");
+            return;
+        }
+
+        if (!phonePattern.test(phone)) {
+            toast.warning("Số điện thoại không đúng định dạng (vd: 0901234567 hoặc +84901234567)");
             return;
         }
 
         createSupplierMutation.mutate({
             name,
             contactPerson: createForm.contactPerson.trim() || null,
-            phone: createForm.phone.trim() || null,
+            phone,
             email: createForm.email.trim() || null,
             address: createForm.address.trim() || null,
             isActive: createForm.isActive,
@@ -194,8 +207,19 @@ export default function SupplierList() {
         }
 
         const name = editForm.name.trim();
+        const phone = editForm.phone.trim();
         if (!name) {
             toast.warning("Vui lòng nhập tên nhà cung cấp");
+            return;
+        }
+
+        if (!phone) {
+            toast.warning("Vui lòng nhập số điện thoại nhà cung cấp");
+            return;
+        }
+
+        if (!phonePattern.test(phone)) {
+            toast.warning("Số điện thoại không đúng định dạng (vd: 0901234567 hoặc +84901234567)");
             return;
         }
 
@@ -204,7 +228,7 @@ export default function SupplierList() {
             payload: {
                 name,
                 contactPerson: editForm.contactPerson.trim() || null,
-                phone: editForm.phone.trim() || null,
+                phone,
                 email: editForm.email.trim() || null,
                 address: editForm.address.trim() || null,
                 isActive: editForm.isActive,

@@ -7,6 +7,7 @@ namespace Inventory.Service.DTOs
         [MaxLength(500, ErrorMessage = "Ghi chú không được vượt quá 500 ký tự")]
         public string Note { get; set; } = "";
 
+        [Required(ErrorMessage = "SupplierId là bắt buộc")]
         [Range(1, int.MaxValue, ErrorMessage = "SupplierId không hợp lệ")]
         public int? SupplierId { get; set; }
 

@@ -169,6 +169,7 @@ export default function StockIn() {
         const formattedItems = items.map((item) => ({
             productId: item.productId,
             quantity: item.quantity,
+            price: Math.max(0, Number(item.importPrice) || 0),
         }));
 
         createTicketMutation.mutate({

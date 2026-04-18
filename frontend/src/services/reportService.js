@@ -60,6 +60,10 @@ export const reportService = {
         }
     },
 
+    getBusinessReport: async (params) => {
+        return await axiosInstance.get('/report/business', { params });
+    },
+
     // Tải file Excel
     exportExcel: async (params) => {
         return await axiosInstance.get('/report/export/excel', {

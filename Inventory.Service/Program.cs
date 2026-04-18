@@ -93,6 +93,34 @@ builder.Services.AddAuthorization(options =>
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<WarehouseDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DatabaseMigration");
+
+    const int maxAttempts = 10;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++)
+    {
+        try
+        {
+            db.Database.Migrate();
+            logger.LogInformation("WarehouseDb migration completed.");
+            break;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "WarehouseDb migration attempt {Attempt}/{MaxAttempts} failed.", attempt, maxAttempts);
+
+            if (attempt == maxAttempts)
+            {
+                throw;
+            }
+
+            Thread.Sleep(TimeSpan.FromSeconds(5));
+        }
+    }
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {

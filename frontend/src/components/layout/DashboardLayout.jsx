@@ -110,6 +110,12 @@ export default function DashboardLayout() {
             icon: "local_shipping",
             roles: ["Admin", "ThuKho", "KeToan"],
         },
+        {
+            name: "Quản lý tài khoản",
+            path: "/users",
+            icon: "manage_accounts",
+            roles: ["Admin"],
+        },
     ].filter((item) => item.roles.includes(role || "Admin"));
 
     return (

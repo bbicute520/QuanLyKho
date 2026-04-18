@@ -22,8 +22,10 @@ public class ChatController : ControllerBase
     [HttpPost("ask")]
     public async Task<IActionResult> Ask([FromBody] ChatRequest request)
     {
+        var bearerToken = ResolveBearerToken();
+
         // 1. lấy dữ liệu thật từ Inventory
-        var data = await _inventoryClient.GetInventorySummary();
+        var data = await _inventoryClient.GetInventorySummary(bearerToken);
 
         // 2. hỏi AI
         var answer = await _aiService.Ask(data, request.Message);
@@ -37,12 +39,29 @@ public class ChatController : ControllerBase
     [HttpPost("summary")]
     public async Task<IActionResult> Summary()
     {
-        var data = await _inventoryClient.GetInventorySummary();
+        var bearerToken = ResolveBearerToken();
+        var data = await _inventoryClient.GetInventorySummary(bearerToken);
         var answer = await _aiService.Summarize(data);
 
         return Ok(new ChatResponse
         {
             Answer = answer
         });
+    }
+
+    private string? ResolveBearerToken()
+    {
+        var authHeader = Request.Headers.Authorization.ToString();
+        if (!string.IsNullOrWhiteSpace(authHeader))
+        {
+            return authHeader;
+        }
+
+        if (Request.Cookies.TryGetValue("access_token", out var cookieToken) && !string.IsNullOrWhiteSpace(cookieToken))
+        {
+            return $"Bearer {cookieToken}";
+        }
+
+        return null;
     }
 }

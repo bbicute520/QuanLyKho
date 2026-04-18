@@ -17,5 +17,7 @@ namespace Auth.Service.Models
         [Required(ErrorMessage = "Role là bắt buộc")]
         [RegularExpression("^(Admin|ThuKho|KeToan)$", ErrorMessage = "Role chỉ được là Admin, ThuKho hoặc KeToan")]
         public string Role { get; set; } = "ThuKho";
+
+        public bool IsActive { get; set; } = true;
     }
 }
