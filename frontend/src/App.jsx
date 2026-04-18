@@ -4,6 +4,7 @@ import Dashboard from "./features/dashboard/Dashboard";
 import Reports from "./features/dashboard/Reports";
 import ProductList from "./features/inventory/ProductList";
 import SupplierList from "./features/suppliers/SupplierList";
+import UserManagement from "./features/admin/UserManagement";
 import StockIn from "./features/transactions/StockIn";
 import StockInHistory from "./features/transactions/StockInHistory";
 import StockOut from "./features/transactions/StockOut";
@@ -59,6 +60,17 @@ export default function App() {
                             }
                         >
                             <Route path="reports" element={<Reports />} />
+                        </Route>
+
+                        {/* TRANG CHỈ DÀNH CHO ADMIN */}
+                        <Route
+                            element={
+                                <ProtectedRoute
+                                    allowedRoles={["Admin"]}
+                                />
+                            }
+                        >
+                            <Route path="users" element={<UserManagement />} />
                         </Route>
                     </Route>
                 </Route>

@@ -29,5 +29,7 @@ export const supplierService = {
         );
 
         return categories;
-    }
+    },
+
+    getAnalytics: async (params = {}) => await axiosInstance.get('/supplier/analytics', { params })
 };

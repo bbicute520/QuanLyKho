@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Supplier.Service.Data;
 using Supplier.Service.DTOs;
 using Supplier.Service.Models;
+using Supplier.Service.Services;
 
 namespace Supplier.Service.Controllers
 {
@@ -13,10 +14,12 @@ namespace Supplier.Service.Controllers
     public class SupplierController : ControllerBase
     {
         private readonly SupplierDbContext _context;
+        private readonly InventoryAnalyticsClient _inventoryAnalyticsClient;
 
-        public SupplierController(SupplierDbContext context)
+        public SupplierController(SupplierDbContext context, InventoryAnalyticsClient inventoryAnalyticsClient)
         {
             _context = context;
+            _inventoryAnalyticsClient = inventoryAnalyticsClient;
         }
 
         [HttpGet]
@@ -125,6 +128,139 @@ namespace Supplier.Service.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        [HttpGet("analytics")]
+        [Authorize(Roles = "Admin,ThuKho,KeToan")]
+        public async Task<IActionResult> GetAnalytics([FromQuery] int limit = 2000, CancellationToken cancellationToken = default)
+        {
+            var safeLimit = Math.Clamp(limit, 1, 5000);
+            var bearerToken = ResolveBearerToken();
+            var history = await _inventoryAnalyticsClient.GetHistoryAsync(safeLimit, bearerToken, cancellationToken);
+
+            var importTransactions = history
+                .Where(item => IsImport(item) && item.SupplierId.HasValue)
+                .ToList();
+
+            var grouped = importTransactions
+                .GroupBy(item => item.SupplierId!.Value)
+                .ToDictionary(group => group.Key, group => group.ToList());
+
+            var suppliers = await _context.Suppliers
+                .OrderBy(x => x.Name)
+                .ToListAsync(cancellationToken);
+
+            foreach (var supplier in suppliers)
+            {
+                if (!grouped.TryGetValue(supplier.Id, out var supplierTransactions))
+                {
+                    supplier.TotalTransactions = 0;
+                    supplier.TotalImportValue = 0;
+                    supplier.ReliabilityScore = supplier.IsActive ? 50 : 25;
+                    supplier.LastTransactionAt = null;
+                    continue;
+                }
+
+                supplier.TotalTransactions = supplierTransactions.Count;
+                supplier.TotalImportValue = supplierTransactions.Sum(ResolveAmount);
+                supplier.LastTransactionAt = supplierTransactions.Max(ResolveDate);
+                supplier.ReliabilityScore = CalculateReliabilityScore(supplier, supplierTransactions);
+            }
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            var payload = suppliers.Select(supplier => new
+            {
+                supplier.Id,
+                supplier.Name,
+                supplier.ContactPerson,
+                supplier.Phone,
+                supplier.Email,
+                supplier.IsActive,
+                supplier.TotalTransactions,
+                supplier.TotalImportValue,
+                supplier.ReliabilityScore,
+                supplier.LastTransactionAt
+            });
+
+            return Ok(payload);
+        }
+
+        private string? ResolveBearerToken()
+        {
+            var authHeader = Request.Headers.Authorization.ToString();
+            if (!string.IsNullOrWhiteSpace(authHeader))
+            {
+                return authHeader;
+            }
+
+            if (Request.Cookies.TryGetValue("access_token", out var cookieToken) && !string.IsNullOrWhiteSpace(cookieToken))
+            {
+                return $"Bearer {cookieToken}";
+            }
+
+            return null;
+        }
+
+        private static bool IsImport(InventoryHistoryDto item)
+        {
+            var type = ResolveType(item);
+            return type.Contains("IMPORT", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string ResolveType(InventoryHistoryDto item)
+        {
+            if (!string.IsNullOrWhiteSpace(item.Type))
+            {
+                return item.Type;
+            }
+
+            return item.TransactionType;
+        }
+
+        private static DateTime ResolveDate(InventoryHistoryDto item)
+        {
+            if (item.Date != default)
+            {
+                return item.Date;
+            }
+
+            return item.TransactionDate;
+        }
+
+        private static decimal ResolveAmount(InventoryHistoryDto item)
+        {
+            if (item.TotalAmount > 0)
+            {
+                return item.TotalAmount;
+            }
+
+            if (item.UnitPrice <= 0 || item.Quantity <= 0)
+            {
+                return 0;
+            }
+
+            return item.UnitPrice * item.Quantity;
+        }
+
+        private static decimal CalculateReliabilityScore(SupplierInfo supplier, IReadOnlyCollection<InventoryHistoryDto> transactions)
+        {
+            var count = transactions.Count;
+            var totalValue = transactions.Sum(ResolveAmount);
+            var lastDate = transactions.Max(ResolveDate);
+            var ageDays = (DateTime.UtcNow - lastDate).TotalDays;
+
+            var activityScore = Math.Min(50m, count * 2m);
+            var valueScore = Math.Min(30m, totalValue / 100_000_000m * 30m);
+            var recencyScore = ageDays <= 30 ? 20m : ageDays <= 90 ? 12m : 6m;
+
+            var score = activityScore + valueScore + recencyScore;
+            if (!supplier.IsActive)
+            {
+                score *= 0.5m;
+            }
+
+            return decimal.Round(Math.Clamp(score, 0, 100), 2);
         }
     }
 }

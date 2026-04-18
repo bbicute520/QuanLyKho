@@ -92,8 +92,18 @@ public class ProductController : ControllerBase
     // Thêm mới 1 sản phẩm
     [HttpPost]
     [Authorize(Roles = "Admin,ThuKho")]
-    public async Task<ActionResult<Product>> PostProduct(Product product)
+    public async Task<ActionResult<Product>> PostProduct([FromBody] ProductUpsertRequest request)
     {
+        var product = new Product
+        {
+            Name = request.Name.Trim(),
+            Category = request.Category.Trim(),
+            Unit = request.Unit.Trim(),
+            Stock = request.Stock,
+            MinStock = request.MinStock,
+            ImageUrl = request.ImageUrl
+        };
+
         _context.Products.Add(product);
         await _context.SaveChangesAsync();
 
@@ -105,14 +115,25 @@ public class ProductController : ControllerBase
     // Cập nhật thông tin sản phẩm
     [HttpPut("{id}")]
     [Authorize(Roles = "Admin,ThuKho")]
-    public async Task<IActionResult> PutProduct(int id, Product product)
+    public async Task<IActionResult> PutProduct(int id, [FromBody] ProductUpsertRequest request)
     {
-        if (id != product.Id)
+        if (id != request.Id)
         {
             return BadRequest(); // Trả về 400 nếu Id trên URL và trong body không khớp
         }
 
-        _context.Entry(product).State = EntityState.Modified;
+        var product = await _context.Products.FindAsync(id);
+        if (product == null)
+        {
+            return NotFound();
+        }
+
+        product.Name = request.Name.Trim();
+        product.Category = request.Category.Trim();
+        product.Unit = request.Unit.Trim();
+        product.Stock = request.Stock;
+        product.MinStock = request.MinStock;
+        product.ImageUrl = request.ImageUrl;
 
         try
         {
@@ -224,6 +245,35 @@ public class ProductController : ControllerBase
     {
         [Required(ErrorMessage = "File ảnh là bắt buộc")]
         public IFormFile? File { get; set; }
+    }
+
+    public class ProductUpsertRequest
+    {
+        public int Id { get; set; }
+
+        [Required(ErrorMessage = "Tên sản phẩm không được để trống")]
+        [MaxLength(255, ErrorMessage = "Tên sản phẩm không được vượt quá 255 ký tự")]
+        public string Name { get; set; } = "";
+
+        [Required(ErrorMessage = "Danh mục không được để trống")]
+        [MaxLength(100)]
+        public string Category { get; set; } = "";
+
+        [Required(ErrorMessage = "Đơn vị tính không được để trống")]
+        [MaxLength(50)]
+        public string Unit { get; set; } = "";
+
+        [Range(0, int.MaxValue, ErrorMessage = "Số lượng tồn kho không được là số âm")]
+        public int Stock { get; set; } = 0;
+
+        [Range(0, 10000, ErrorMessage = "Mức tồn kho tối thiểu không hợp lệ")]
+        public int MinStock { get; set; } = 10;
+
+        [MaxLength(500, ErrorMessage = "Đường dẫn ảnh không được vượt quá 500 ký tự")]
+        public string? ImageUrl { get; set; }
+
+        [Range(typeof(decimal), "0", "79228162514264337593543950335", ErrorMessage = "Giá sản phẩm không được âm")]
+        public decimal? Price { get; set; }
     }
 
 }

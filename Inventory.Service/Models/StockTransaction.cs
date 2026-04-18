@@ -16,6 +16,12 @@ namespace Inventory.Service.Models
         [Range(1, 100000, ErrorMessage = "Số lượng giao dịch phải lớn hơn 0")]
         public int Quantity { get; set; }
 
+        [Range(typeof(decimal), "0", "79228162514264337593543950335", ErrorMessage = "Đơn giá không được âm")]
+        public decimal UnitPrice { get; set; }
+
+        [Range(1, int.MaxValue, ErrorMessage = "SupplierId không hợp lệ")]
+        public int? SupplierId { get; set; }
+
         public DateTime TransactionDate { get; set; }
 
         [MaxLength(500, ErrorMessage = "Ghi chú không được vượt quá 500 ký tự")]

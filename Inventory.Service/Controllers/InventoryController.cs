@@ -42,7 +42,7 @@ namespace Inventory.Service.Controllers
         [HttpGet("history")]
         public async Task<IActionResult> GetHistory([FromQuery] int limit = 200)
         {
-            var safeLimit = Math.Clamp(limit, 1, 500);
+            var safeLimit = Math.Clamp(limit, 1, 5000);
 
             var history = await _context.StockTransactions
                 .AsNoTracking()
@@ -58,6 +58,9 @@ namespace Inventory.Service.Controllers
                         productId = t.ProductId,
                         productName = p.Name,
                         quantity = t.Quantity,
+                        unitPrice = t.UnitPrice,
+                        totalAmount = t.UnitPrice * t.Quantity,
+                        supplierId = t.SupplierId,
                         type = t.TransactionType,
                         transactionType = t.TransactionType,
                         date = t.TransactionDate,
@@ -103,6 +106,8 @@ namespace Inventory.Service.Controllers
                         ProductId = item.ProductId,
                         TransactionType = "IMPORT",
                         Quantity = item.Quantity,
+                        UnitPrice = item.Price ?? 0,
+                        SupplierId = request.SupplierId,
                         TransactionDate = DateTime.Now,
                         Note = $"Nhập theo phiếu {receipt.Id}"
                     });
@@ -127,12 +132,16 @@ namespace Inventory.Service.Controllers
         {
             if (request.Items == null || !request.Items.Any()) return BadRequest("Danh sách trống.");
 
+            var exportNote = string.IsNullOrWhiteSpace(request.Note)
+                ? (request.Reason?.Trim() ?? string.Empty)
+                : request.Note.Trim();
+
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
                 var receipt = new ExportReceipt
                 {
-                    Reason = request.Reason,
+                    Reason = exportNote,
                     ExportDate = DateTime.Now
                 };
                 _context.ExportReceipts.Add(receipt);
@@ -158,8 +167,12 @@ namespace Inventory.Service.Controllers
                         ProductId = item.ProductId,
                         TransactionType = "EXPORT",
                         Quantity = item.Quantity,
+                        UnitPrice = item.Price ?? 0,
+                        SupplierId = null,
                         TransactionDate = DateTime.Now,
-                        Note = $"Xuất theo phiếu {receipt.Id}"
+                        Note = string.IsNullOrWhiteSpace(exportNote)
+                            ? $"Xuất theo phiếu {receipt.Id}"
+                            : $"Xuất theo phiếu {receipt.Id} - {exportNote}"
                     });
                 }
 

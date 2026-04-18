@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Supplier.Service.Data;
+using Supplier.Service.Services;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -45,6 +46,12 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddDbContext<SupplierDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+var inventoryBaseUrl = builder.Configuration["InventoryService:BaseUrl"] ?? "http://localhost:5002";
+builder.Services.AddHttpClient<InventoryAnalyticsClient>(client =>
+{
+    client.BaseAddress = new Uri(inventoryBaseUrl);
+});
+
 var jwtKey = builder.Configuration["Jwt:Key"];
 if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
 {
@@ -83,6 +90,34 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<SupplierDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("DatabaseMigration");
+
+    const int maxAttempts = 10;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++)
+    {
+        try
+        {
+            db.Database.Migrate();
+            logger.LogInformation("SupplierDb migration completed.");
+            break;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "SupplierDb migration attempt {Attempt}/{MaxAttempts} failed.", attempt, maxAttempts);
+
+            if (attempt == maxAttempts)
+            {
+                throw;
+            }
+
+            Thread.Sleep(TimeSpan.FromSeconds(5));
+        }
+    }
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

@@ -153,7 +153,7 @@ export default function StockOut() {
                 code: variables?.code || ticketCode,
                 date: exportDate,
                 partnerName: customer,
-                reason: note,
+                note,
                 items: [...items], // copy danh sách sản phẩm
             });
 
@@ -179,11 +179,6 @@ export default function StockOut() {
             return;
         }
 
-        if (!note.trim()) {
-            toast.warning("Vui lòng nhập lý do xuất kho");
-            return;
-        }
-
         const codeForSubmit = ticketCode.trim() || generateTicketCode("PX");
         if (!ticketCode.trim()) {
             setTicketCode(codeForSubmit);
@@ -198,7 +193,7 @@ export default function StockOut() {
         // Gọi mutation 1 lần duy nhất với đầy đủ dữ liệu
         createTicketMutation.mutate({
             code: codeForSubmit,
-            reason: note,
+            note,
             items: formattedItems,
         });
     };
@@ -277,14 +272,14 @@ export default function StockOut() {
                                     htmlFor="ly-do"
                                     className="text-xs font-bold uppercase tracking-wider text-outline"
                                 >
-                                    Lý do xuất
+                                    Ghi chú
                                 </Label>
                                 <textarea
                                     id="ly-do"
                                     value={note}
                                     onChange={(e) => setNote(e.target.value)}
                                     className="flex w-full rounded-md border border-outline-variant/30 bg-surface-container-low px-4 py-3 text-base shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary resize-none"
-                                    placeholder="Ghi chú lý do xuất hàng..."
+                                    placeholder="Ghi chú thêm cho phiếu xuất (không bắt buộc)..."
                                     rows="4"
                                 ></textarea>
                             </div>

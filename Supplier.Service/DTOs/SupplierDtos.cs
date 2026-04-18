@@ -11,7 +11,9 @@ namespace Supplier.Service.DTOs
         [MaxLength(50, ErrorMessage = "Tên người liên hệ không được vượt quá 50 ký tự")]
         public string? ContactPerson { get; set; }
 
+        [Required(ErrorMessage = "Số điện thoại là bắt buộc")]
         [MaxLength(20, ErrorMessage = "Số điện thoại không được vượt quá 20 ký tự")]
+        [RegularExpression("^(0\\d{9}|\\+84\\d{9})$", ErrorMessage = "Số điện thoại không đúng định dạng (vd: 0901234567 hoặc +84901234567)")]
         public string? Phone { get; set; }
 
         [EmailAddress(ErrorMessage = "Email không đúng định dạng")]

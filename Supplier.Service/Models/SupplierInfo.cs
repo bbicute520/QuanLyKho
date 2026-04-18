@@ -26,5 +26,16 @@ namespace Supplier.Service.Models
         public bool IsActive { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        [Range(0, int.MaxValue, ErrorMessage = "Tổng số giao dịch không hợp lệ")]
+        public int TotalTransactions { get; set; }
+
+        [Range(typeof(decimal), "0", "79228162514264337593543950335", ErrorMessage = "Tổng giá trị nhập không hợp lệ")]
+        public decimal TotalImportValue { get; set; }
+
+        [Range(typeof(decimal), "0", "100", ErrorMessage = "Điểm uy tín phải trong khoảng 0-100")]
+        public decimal ReliabilityScore { get; set; }
+
+        public DateTime? LastTransactionAt { get; set; }
     }
 }

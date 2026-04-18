@@ -1,16 +1,6 @@
-namespace Report.Service.DTOs;
+namespace Supplier.Service.DTOs;
 
-public sealed class InventoryStockDto
-{
-    public int Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Category { get; set; } = string.Empty;
-    public int Stock { get; set; }
-    public int MinStock { get; set; }
-    public bool IsLowStock { get; set; }
-}
-
-public sealed class StockTransactionDto
+public sealed class InventoryHistoryDto
 {
     public int Id { get; set; }
     public int ProductId { get; set; }

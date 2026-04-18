@@ -60,6 +60,7 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:80
       - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=SupplierDb;User ID=sa;Password=${DB_PASSWORD};TrustServerCertificate=True
+      - InventoryService__BaseUrl=http://inventory-service
     ports:
       - "5003:80"
     depends_on:
