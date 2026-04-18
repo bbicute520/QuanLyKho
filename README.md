@@ -55,6 +55,19 @@ npm install
 npm run dev
 ```
 
+## Frontend da deploy tren Vercel
+
+Neu frontend da deploy tren Vercel thi sau khi push code, can dam bao:
+
+- Vercel project dung branch dung (thuong la main).
+- Vercel co ENV `VITE_API_BASE_URL` tro den gateway public, vi du: `https://your-gateway-domain/api`.
+- Gateway cho phep origin cua Vercel qua bien moi truong `Cors__AllowedOrigins` (danh sach cach nhau boi dau phay), vi du: `https://your-app.vercel.app,https://your-team.vercel.app`.
+
+Luu y quan trong:
+
+- Frontend tren Vercel khong the goi `http://localhost:5000/api`.
+- Neu backend chi chay local Docker tren may ca nhan thi ban Vercel se khong truy cap duoc API.
+
 ## Quy uoc du lieu khi lam viec nhom
 
 - Khong push duoc du lieu runtime ben trong Docker volume len Git.
