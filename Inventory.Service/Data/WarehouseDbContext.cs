@@ -22,6 +22,27 @@ namespace Inventory.Service.Data
                 .Property(x => x.UnitPrice)
                 .HasPrecision(18, 2);
 
+            modelBuilder.Entity<ImportReceipt>()
+                .ToTable(tb =>
+                {
+                    tb.HasCheckConstraint("CK_ImportReceipts_EmployeeId", "[EmployeeId] > 0");
+                    tb.HasCheckConstraint("CK_ImportReceipts_EmployeeName", "LEN(LTRIM(RTRIM([EmployeeName]))) > 0");
+                });
+
+            modelBuilder.Entity<ExportReceipt>()
+                .ToTable(tb =>
+                {
+                    tb.HasCheckConstraint("CK_ExportReceipts_EmployeeId", "[EmployeeId] > 0");
+                    tb.HasCheckConstraint("CK_ExportReceipts_EmployeeName", "LEN(LTRIM(RTRIM([EmployeeName]))) > 0");
+                });
+
+            modelBuilder.Entity<StockTransaction>()
+                .ToTable(tb =>
+                {
+                    tb.HasCheckConstraint("CK_StockTransactions_EmployeeId", "[EmployeeId] > 0");
+                    tb.HasCheckConstraint("CK_StockTransactions_EmployeeName", "LEN(LTRIM(RTRIM([EmployeeName]))) > 0");
+                });
+
             // Seed data cho Category
             modelBuilder.Entity<Category>().HasData(
                 new Category { Id = 1, Name = "Điện tử" },

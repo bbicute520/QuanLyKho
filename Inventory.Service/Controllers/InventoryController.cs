@@ -1,6 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using System.Text.RegularExpressions;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using Inventory.Service.Data;
 using Inventory.Service.DTOs;
 using Inventory.Service.Models;
@@ -44,7 +47,7 @@ namespace Inventory.Service.Controllers
         {
             var safeLimit = Math.Clamp(limit, 1, 5000);
 
-            var history = await _context.StockTransactions
+            var rawHistory = await _context.StockTransactions
                 .AsNoTracking()
                 .OrderByDescending(t => t.TransactionDate)
                 .Take(safeLimit)
@@ -55,6 +58,8 @@ namespace Inventory.Service.Controllers
                     (t, p) => new
                     {
                         id = t.Id,
+                        employeeId = t.EmployeeId,
+                        employeeName = t.EmployeeName,
                         productId = t.ProductId,
                         productName = p.Name,
                         quantity = t.Quantity,
@@ -70,7 +75,113 @@ namespace Inventory.Service.Controllers
                 )
                 .ToListAsync();
 
+            var missingEmployeeRows = rawHistory
+                .Where(x => (x.employeeId <= 0 || string.IsNullOrWhiteSpace(x.employeeName)) && !string.IsNullOrWhiteSpace(x.note))
+                .ToList();
+
+            var importReceiptIds = missingEmployeeRows
+                .Where(x => string.Equals(x.transactionType, "IMPORT", StringComparison.OrdinalIgnoreCase))
+                .Select(x => ExtractReceiptId(x.note))
+                .Where(x => x.HasValue)
+                .Select(x => x!.Value)
+                .Distinct()
+                .ToList();
+
+            var exportReceiptIds = missingEmployeeRows
+                .Where(x => string.Equals(x.transactionType, "EXPORT", StringComparison.OrdinalIgnoreCase))
+                .Select(x => ExtractReceiptId(x.note))
+                .Where(x => x.HasValue)
+                .Select(x => x!.Value)
+                .Distinct()
+                .ToList();
+
+            var importEmployeeMap = importReceiptIds.Count == 0
+                ? new Dictionary<int, (int EmployeeId, string EmployeeName)>()
+                : await _context.ImportReceipts
+                    .AsNoTracking()
+                    .Where(r => importReceiptIds.Contains(r.Id))
+                    .ToDictionaryAsync(r => r.Id, r => (r.EmployeeId, r.EmployeeName));
+
+            var exportEmployeeMap = exportReceiptIds.Count == 0
+                ? new Dictionary<int, (int EmployeeId, string EmployeeName)>()
+                : await _context.ExportReceipts
+                    .AsNoTracking()
+                    .Where(r => exportReceiptIds.Contains(r.Id))
+                    .ToDictionaryAsync(r => r.Id, r => (r.EmployeeId, r.EmployeeName));
+
+            var history = rawHistory.Select(x =>
+            {
+                var employeeId = x.employeeId;
+                var employeeName = x.employeeName;
+
+                if (employeeId > 0 && !string.IsNullOrWhiteSpace(employeeName))
+                {
+                    return new
+                    {
+                        x.id,
+                        employeeId,
+                        employeeName,
+                        x.productId,
+                        x.productName,
+                        x.quantity,
+                        x.unitPrice,
+                        x.totalAmount,
+                        x.supplierId,
+                        x.type,
+                        x.transactionType,
+                        x.date,
+                        x.transactionDate,
+                        x.note
+                    };
+                }
+
+                var receiptId = ExtractReceiptId(x.note);
+                if (receiptId.HasValue)
+                {
+                    if (string.Equals(x.transactionType, "IMPORT", StringComparison.OrdinalIgnoreCase)
+                        && importEmployeeMap.TryGetValue(receiptId.Value, out var importEmployee))
+                    {
+                        employeeId = importEmployee.EmployeeId;
+                        employeeName = importEmployee.EmployeeName;
+                    }
+                    else if (string.Equals(x.transactionType, "EXPORT", StringComparison.OrdinalIgnoreCase)
+                        && exportEmployeeMap.TryGetValue(receiptId.Value, out var exportEmployee))
+                    {
+                        employeeId = exportEmployee.EmployeeId;
+                        employeeName = exportEmployee.EmployeeName;
+                    }
+                }
+
+                return new
+                {
+                    x.id,
+                    employeeId,
+                    employeeName,
+                    x.productId,
+                    x.productName,
+                    x.quantity,
+                    x.unitPrice,
+                    x.totalAmount,
+                    x.supplierId,
+                    x.type,
+                    x.transactionType,
+                    x.date,
+                    x.transactionDate,
+                    x.note
+                };
+            }).ToList();
+
             return Ok(history);
+        }
+
+        private static int? ExtractReceiptId(string? note)
+        {
+            if (string.IsNullOrWhiteSpace(note)) return null;
+
+            var match = Regex.Match(note, @"phi[ếe]u\s+(\d+)", RegexOptions.IgnoreCase);
+            if (!match.Success) return null;
+
+            return int.TryParse(match.Groups[1].Value, out var receiptId) ? receiptId : null;
         }
 
         // POST: api/inventory/import
@@ -80,11 +191,28 @@ namespace Inventory.Service.Controllers
         {
             if (request.Items == null || !request.Items.Any()) return BadRequest("Danh sách trống.");
 
+            var employeeIdClaim = User.FindFirstValue("userId")
+                ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+
+            var employeeName = User.FindFirstValue("username")
+                ?? User.FindFirstValue(ClaimTypes.Name)
+                ?? User.FindFirstValue(JwtRegisteredClaimNames.UniqueName);
+
+            if (!int.TryParse(employeeIdClaim, out var employeeId) || employeeId <= 0 || string.IsNullOrWhiteSpace(employeeName))
+            {
+                return Unauthorized("Không xác định được thông tin nhân viên thực hiện.");
+            }
+
+            employeeName = employeeName.Trim();
+
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
                 var receipt = new ImportReceipt
                 {
+                    EmployeeId = employeeId,
+                    EmployeeName = employeeName,
                     Note = request.Note,
                     SupplierId = request.SupplierId,
                     ImportDate = DateTime.Now
@@ -103,6 +231,8 @@ namespace Inventory.Service.Controllers
 
                     _context.StockTransactions.Add(new StockTransaction
                     {
+                        EmployeeId = employeeId,
+                        EmployeeName = employeeName,
                         ProductId = item.ProductId,
                         TransactionType = "IMPORT",
                         Quantity = item.Quantity,
@@ -116,7 +246,13 @@ namespace Inventory.Service.Controllers
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                return Ok(new { Message = "Nhập kho thành công!", ReceiptId = receipt.Id });
+                return Ok(new
+                {
+                    Message = "Nhập kho thành công!",
+                    ReceiptId = receipt.Id,
+                    EmployeeId = employeeId,
+                    EmployeeName = employeeName
+                });
             }
             catch (Exception ex)
             {
@@ -132,6 +268,21 @@ namespace Inventory.Service.Controllers
         {
             if (request.Items == null || !request.Items.Any()) return BadRequest("Danh sách trống.");
 
+            var employeeIdClaim = User.FindFirstValue("userId")
+                ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+
+            var employeeName = User.FindFirstValue("username")
+                ?? User.FindFirstValue(ClaimTypes.Name)
+                ?? User.FindFirstValue(JwtRegisteredClaimNames.UniqueName);
+
+            if (!int.TryParse(employeeIdClaim, out var employeeId) || employeeId <= 0 || string.IsNullOrWhiteSpace(employeeName))
+            {
+                return Unauthorized("Không xác định được thông tin nhân viên thực hiện.");
+            }
+
+            employeeName = employeeName.Trim();
+
             var exportNote = string.IsNullOrWhiteSpace(request.Note)
                 ? (request.Reason?.Trim() ?? string.Empty)
                 : request.Note.Trim();
@@ -141,6 +292,8 @@ namespace Inventory.Service.Controllers
             {
                 var receipt = new ExportReceipt
                 {
+                    EmployeeId = employeeId,
+                    EmployeeName = employeeName,
                     Reason = exportNote,
                     ExportDate = DateTime.Now
                 };
@@ -164,6 +317,8 @@ namespace Inventory.Service.Controllers
 
                     _context.StockTransactions.Add(new StockTransaction
                     {
+                        EmployeeId = employeeId,
+                        EmployeeName = employeeName,
                         ProductId = item.ProductId,
                         TransactionType = "EXPORT",
                         Quantity = item.Quantity,
@@ -179,7 +334,13 @@ namespace Inventory.Service.Controllers
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                return Ok(new { Message = "Xuất kho thành công!", ReceiptId = receipt.Id });
+                return Ok(new
+                {
+                    Message = "Xuất kho thành công!",
+                    ReceiptId = receipt.Id,
+                    EmployeeId = employeeId,
+                    EmployeeName = employeeName
+                });
             }
             catch (Exception ex)
             {

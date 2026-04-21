@@ -21,6 +21,15 @@ export default function PrintTicketModal({ isOpen, onClose, ticketData, type }) 
                 </div>
                 <h3 className="text-2xl font-bold text-slate-800 text-center">Đã lưu phiếu {ticketData.code}!</h3>
                 <p className="text-slate-500 text-center mb-4">Giao dịch đã được ghi nhận vào hệ thống. Bạn có muốn xuất file PDF / in phiếu này không?</p>
+                {!!(ticketData.employeeName || ticketData.employeeId) && (
+                    <div className="w-full rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 text-sm text-blue-900">
+                        <p className="font-bold uppercase tracking-wide text-[11px] mb-1">Nhân viên tạo phiếu</p>
+                        <p className="font-semibold">
+                            {ticketData.employeeName || "Chưa có dữ liệu"}
+                            {ticketData.employeeId ? ` (ID: ${ticketData.employeeId})` : ""}
+                        </p>
+                    </div>
+                )}
                 
                 <div className="flex gap-4 w-full">
                     <button 

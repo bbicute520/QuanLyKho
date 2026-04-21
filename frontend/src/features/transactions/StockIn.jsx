@@ -120,17 +120,20 @@ export default function StockIn() {
 
     const createTicketMutation = useMutation({
         mutationFn: (newTicket) => stockService.createInwardTicket(newTicket),
-        onSuccess: (_, variables) => {
+        onSuccess: (response, variables) => {
             toast.success("Lưu phiếu nhập kho thành công");
 
             const selectedSupplier = suppliers.find(s => s.id === Number(supplier));
+            const payload = response?.data || {};
 
             // Lưu dữ liệu vào state để gọi Modal in
             setPrintData({
-                code: variables?.code || ticketCode,
+                code: payload?.receiptId || payload?.ReceiptId || variables?.code || ticketCode,
                 date: importDate,
                 partnerName: selectedSupplier ? selectedSupplier.name : 'Không rõ',
                 reason: note,
+                employeeId: payload?.employeeId || payload?.EmployeeId || "",
+                employeeName: payload?.employeeName || payload?.EmployeeName || "",
                 items: [...items]
             });
 

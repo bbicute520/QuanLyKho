@@ -104,6 +104,62 @@ using (var scope = app.Services.CreateScope())
         try
         {
             db.Database.Migrate();
+            db.Database.ExecuteSqlRaw(@"
+IF COL_LENGTH('ImportReceipts', 'EmployeeId') IS NULL
+    ALTER TABLE ImportReceipts ADD EmployeeId INT NOT NULL CONSTRAINT DF_ImportReceipts_EmployeeId DEFAULT (0);
+
+IF COL_LENGTH('ImportReceipts', 'EmployeeName') IS NULL
+    ALTER TABLE ImportReceipts ADD EmployeeName NVARCHAR(100) NOT NULL CONSTRAINT DF_ImportReceipts_EmployeeName DEFAULT ('');
+
+IF COL_LENGTH('ExportReceipts', 'EmployeeId') IS NULL
+    ALTER TABLE ExportReceipts ADD EmployeeId INT NOT NULL CONSTRAINT DF_ExportReceipts_EmployeeId DEFAULT (0);
+
+IF COL_LENGTH('ExportReceipts', 'EmployeeName') IS NULL
+    ALTER TABLE ExportReceipts ADD EmployeeName NVARCHAR(100) NOT NULL CONSTRAINT DF_ExportReceipts_EmployeeName DEFAULT ('');
+
+IF COL_LENGTH('StockTransactions', 'EmployeeId') IS NULL
+    ALTER TABLE StockTransactions ADD EmployeeId INT NOT NULL CONSTRAINT DF_StockTransactions_EmployeeId DEFAULT (0);
+
+IF COL_LENGTH('StockTransactions', 'EmployeeName') IS NULL
+    ALTER TABLE StockTransactions ADD EmployeeName NVARCHAR(100) NOT NULL CONSTRAINT DF_StockTransactions_EmployeeName DEFAULT ('');
+
+IF COL_LENGTH('ImportReceipts', 'EmployeeId') IS NOT NULL
+    EXEC(N'UPDATE ImportReceipts SET EmployeeId = 1 WHERE EmployeeId <= 0;');
+
+IF COL_LENGTH('ImportReceipts', 'EmployeeName') IS NOT NULL
+    EXEC(N'UPDATE ImportReceipts SET EmployeeName = N''LegacyUser'' WHERE LEN(LTRIM(RTRIM(EmployeeName))) = 0;');
+
+IF COL_LENGTH('ExportReceipts', 'EmployeeId') IS NOT NULL
+    EXEC(N'UPDATE ExportReceipts SET EmployeeId = 1 WHERE EmployeeId <= 0;');
+
+IF COL_LENGTH('ExportReceipts', 'EmployeeName') IS NOT NULL
+    EXEC(N'UPDATE ExportReceipts SET EmployeeName = N''LegacyUser'' WHERE LEN(LTRIM(RTRIM(EmployeeName))) = 0;');
+
+IF COL_LENGTH('StockTransactions', 'EmployeeId') IS NOT NULL
+    EXEC(N'UPDATE StockTransactions SET EmployeeId = 1 WHERE EmployeeId <= 0;');
+
+IF COL_LENGTH('StockTransactions', 'EmployeeName') IS NOT NULL
+    EXEC(N'UPDATE StockTransactions SET EmployeeName = N''LegacyUser'' WHERE LEN(LTRIM(RTRIM(EmployeeName))) = 0;');
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_ImportReceipts_EmployeeId')
+    EXEC(N'ALTER TABLE ImportReceipts ADD CONSTRAINT CK_ImportReceipts_EmployeeId CHECK (EmployeeId > 0);');
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_ImportReceipts_EmployeeName')
+    EXEC(N'ALTER TABLE ImportReceipts ADD CONSTRAINT CK_ImportReceipts_EmployeeName CHECK (LEN(LTRIM(RTRIM(EmployeeName))) > 0);');
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_ExportReceipts_EmployeeId')
+    EXEC(N'ALTER TABLE ExportReceipts ADD CONSTRAINT CK_ExportReceipts_EmployeeId CHECK (EmployeeId > 0);');
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_ExportReceipts_EmployeeName')
+    EXEC(N'ALTER TABLE ExportReceipts ADD CONSTRAINT CK_ExportReceipts_EmployeeName CHECK (LEN(LTRIM(RTRIM(EmployeeName))) > 0);');
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_StockTransactions_EmployeeId')
+    EXEC(N'ALTER TABLE StockTransactions ADD CONSTRAINT CK_StockTransactions_EmployeeId CHECK (EmployeeId > 0);');
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_StockTransactions_EmployeeName')
+    EXEC(N'ALTER TABLE StockTransactions ADD CONSTRAINT CK_StockTransactions_EmployeeName CHECK (LEN(LTRIM(RTRIM(EmployeeName))) > 0);');
+
+");
             logger.LogInformation("WarehouseDb migration completed.");
             break;
         }

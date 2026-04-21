@@ -6,6 +6,13 @@ namespace Inventory.Service.Models
     {
         public int Id { get; set; }
 
+        [Range(1, int.MaxValue, ErrorMessage = "EmployeeId không hợp lệ")]
+        public int EmployeeId { get; set; }
+
+        [Required(ErrorMessage = "Tên nhân viên là bắt buộc")]
+        [MaxLength(100, ErrorMessage = "Tên nhân viên không được vượt quá 100 ký tự")]
+        public string EmployeeName { get; set; } = "";
+
         [Range(1, int.MaxValue, ErrorMessage = "ProductId không hợp lệ")]
         public int ProductId { get; set; }
 

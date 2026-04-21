@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, Search, Trash2, Users } from "lucide-react";
+import { Loader2, Plus, Search, Users } from "lucide-react";
 import { toast } from "sonner";
 import { authService } from "../../services/authService";
 
@@ -82,21 +82,6 @@ export default function UserManagement() {
         },
     });
 
-    const deleteUserMutation = useMutation({
-        mutationFn: (id) => authService.deleteUser(id),
-        onSuccess: () => {
-            toast.success("Xóa tài khoản thành công");
-            queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-        },
-        onError: (error) => {
-            const message =
-                error?.response?.data?.title ||
-                error?.response?.data ||
-                "Không thể xóa tài khoản";
-            toast.error(String(message));
-        },
-    });
-
     const filteredUsers = useMemo(() => {
         const keywordId = searchUserId.trim().toLowerCase();
 
@@ -148,22 +133,6 @@ export default function UserManagement() {
             id: user.id,
             isActive: !Boolean(user.isActive),
         });
-    };
-
-    const handleDeleteUser = (user) => {
-        if (String(user.role) === "Admin") {
-            toast.warning("Không thể xóa tài khoản Admin");
-            return;
-        }
-
-        const accepted = window.confirm(
-            `Xác nhận xóa tài khoản ${user.username}?`,
-        );
-        if (!accepted) {
-            return;
-        }
-
-        deleteUserMutation.mutate(user.id);
     };
 
     return (
@@ -294,15 +263,12 @@ export default function UserManagement() {
                                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                     Trạng thái
                                 </th>
-                                <th className="px-8 py-5 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                    Hành động
-                                </th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {isLoading && (
                                 <tr>
-                                    <td colSpan="4" className="py-20 text-center">
+                                    <td colSpan="3" className="py-20 text-center">
                                         <Loader2
                                             className="animate-spin mx-auto text-[#003d9b]"
                                             size={30}
@@ -314,7 +280,7 @@ export default function UserManagement() {
                             {isError && (
                                 <tr>
                                     <td
-                                        colSpan="4"
+                                        colSpan="3"
                                         className="py-14 text-center text-red-500 text-sm font-bold"
                                     >
                                         Không tải được danh sách tài khoản
@@ -325,10 +291,7 @@ export default function UserManagement() {
                             {!isLoading &&
                                 !isError &&
                                 filteredUsers.map((user) => {
-                                    const isAdmin = String(user.role) === "Admin";
-                                    const busy =
-                                        updateStatusMutation.isPending ||
-                                        deleteUserMutation.isPending;
+                                    const busy = updateStatusMutation.isPending;
                                     const roleClass =
                                         roleBadgeClassMap[user.role] ||
                                         "bg-slate-100 text-slate-700";
@@ -369,16 +332,6 @@ export default function UserManagement() {
                                                         : "Đã khóa"}
                                                 </button>
                                             </td>
-                                            <td className="px-8 py-5 text-right">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleDeleteUser(user)}
-                                                    disabled={busy || isAdmin}
-                                                    className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-black uppercase tracking-wide bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors disabled:opacity-50"
-                                                >
-                                                    <Trash2 size={14} /> Xóa
-                                                </button>
-                                            </td>
                                         </tr>
                                     );
                                 })}
@@ -386,7 +339,7 @@ export default function UserManagement() {
                             {!isLoading && !isError && filteredUsers.length === 0 && (
                                 <tr>
                                     <td
-                                        colSpan="4"
+                                        colSpan="3"
                                         className="py-14 text-center text-slate-400 text-sm font-bold"
                                     >
                                         Không có tài khoản phù hợp bộ lọc

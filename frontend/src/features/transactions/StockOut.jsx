@@ -146,14 +146,18 @@ export default function StockOut() {
 
     const createTicketMutation = useMutation({
         mutationFn: (newTicket) => stockService.createOutwardTicket(newTicket),
-        onSuccess: (_, variables) => {
+        onSuccess: (response, variables) => {
             toast.success("Lưu phiếu xuất kho thành công");
 
+            const payload = response?.data || {};
+
             setPrintData({
-                code: variables?.code || ticketCode,
+                code: payload?.receiptId || payload?.ReceiptId || variables?.code || ticketCode,
                 date: exportDate,
                 partnerName: customer,
                 note,
+                employeeId: payload?.employeeId || payload?.EmployeeId || "",
+                employeeName: payload?.employeeName || payload?.EmployeeName || "",
                 items: [...items], // copy danh sách sản phẩm
             });
 

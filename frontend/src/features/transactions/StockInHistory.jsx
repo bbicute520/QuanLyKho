@@ -19,6 +19,21 @@ const isImportTransaction = (item) => {
     );
 };
 
+const getEmployeeName = (item) =>
+    item?.employeeName ||
+    item?.EmployeeName ||
+    item?.createdByName ||
+    item?.userName ||
+    item?.username ||
+    "";
+
+const getEmployeeId = (item) =>
+    item?.employeeId ||
+    item?.EmployeeId ||
+    item?.createdById ||
+    item?.userId ||
+    null;
+
 export default function StockInHistory() {
     const [activeLogType, setActiveLogType] = useState("ALL");
     const [searchTerm, setSearchTerm] = useState("");
@@ -245,6 +260,15 @@ export default function StockInHistory() {
                                         {selectedTransaction.quantity || 0}
                                     </p>
                                 </div>
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Nhân viên thực hiện</p>
+                                <p className="text-base font-bold text-slate-900">
+                                    {getEmployeeName(selectedTransaction) || "Chưa có dữ liệu"}
+                                    {getEmployeeId(selectedTransaction)
+                                        ? ` (ID: ${getEmployeeId(selectedTransaction)})`
+                                        : ""}
+                                </p>
                             </div>
                             <div>
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Ghi chú</p>

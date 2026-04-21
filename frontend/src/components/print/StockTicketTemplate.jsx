@@ -25,6 +25,11 @@ const StockTicketTemplate = forwardRef(({ ticketData, type = "OUT" }, ref) => {
                     <strong>{type === "OUT" ? "Ghi chú:" : "Lý do nhập:"}</strong>{" "}
                     {ticketData.note || ticketData.reason || "-"}
                 </p>
+                <p>
+                    <strong>Nhân viên tạo phiếu:</strong>{" "}
+                    {ticketData.employeeName || "-"}
+                    {ticketData.employeeId ? ` (ID: ${ticketData.employeeId})` : ""}
+                </p>
             </div>
 
             <table className="w-full text-left border-collapse border border-black mb-10">
